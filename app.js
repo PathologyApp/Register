@@ -55,15 +55,7 @@ onAuthStateChanged(auth, (user) => {
 addBtn.onclick = () => {
   modal.classList.remove("hidden");
 
-  // ✅ Initialize calendar ONLY when modal opens
-  if (window.flatpickr && !modal.dataset.init) {
-    window.flatpickr("#pDate", {
-  dateFormat: "Y-m-d",
-  allowInput: true,
-  disableMobile: false
-});
-    modal.dataset.init = "true";
-  }
+  // ✅ Initialize calendar ONLY when modal opens  
 };
 modal.onclick = (e) => e.target === modal && modal.classList.add("hidden");
 testModal.onclick = (e) => e.target === testModal && testModal.classList.add("hidden");
