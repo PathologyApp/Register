@@ -11,7 +11,14 @@ header {
   text-align: center;
 }
 
-#patientList {
+.tabs {
+  display: flex;
+  justify-content: space-around;
+  background: white;
+  padding: 10px;
+}
+
+#patientList, #logsView {
   padding: 10px;
 }
 
@@ -21,11 +28,32 @@ header {
   padding: 12px;
   margin-bottom: 10px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-  transition: 0.3s;
 }
 
-.patient-card:hover {
-  transform: scale(1.01);
+.patient-header {
+  display: flex;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.patient-body {
+  margin-top: 10px;
+  border-top: 1px solid #eee;
+  padding-top: 10px;
+}
+
+.test-item {
+  padding: 6px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.addTestBtn {
+  margin-top: 10px;
+  padding: 6px 10px;
+  border: none;
+  background: #2d7ff9;
+  color: white;
+  border-radius: 6px;
 }
 
 #addPatientBtn {
@@ -62,28 +90,9 @@ header {
   border-radius: 12px;
 }
 
-.patient-header {
-  display: flex;
-  justify-content: space-between;
-  cursor: pointer;
-}
-
-.patient-body {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid #eee;
-}
-
-.test-item {
-  padding: 6px 0;
-  border-bottom: 1px solid #eee;
-}
-
-.addTestBtn {
-  margin-top: 10px;
-  padding: 6px 10px;
-  border: none;
-  background: #2d7ff9;
-  color: white;
-  border-radius: 6px;
+.log-item {
+  background: white;
+  padding: 10px;
+  margin-bottom: 8px;
+  border-radius: 8px;
 }
