@@ -35,6 +35,7 @@ loginBtn.onclick = async () => await login();
 // AUTH
 onAuthStateChanged(auth, (user) => {
   if (user) {
+    window.currentUserReady = true;
     const name = user.displayName || user.email.split("@")[0];
     userInfo.innerText = name;
     loginBtn.style.display = "none";
@@ -57,7 +58,12 @@ testModal.onclick = (e) => e.target === testModal && testModal.classList.add("hi
 
 // SAVE PATIENT
 saveBtn.onclick = async () => {
-  if (!auth.currentUser) return alert("Login first");
+  console.log("USER:", auth.currentUser);
+
+if (!window.currentUserReady) {
+  alert("Login not ready yet. Wait 2 seconds and try again.");
+  return;
+}
 
   const name = pName.value;
   const age = pAge.value;
@@ -240,6 +246,11 @@ logsTab.onclick = () => {
 
 if (window.flatpickr) {
   window.flatpickr("#tDate", {
+    dateFormat: "Y-m-d",
+    allowInput: false
+  });
+
+  window.flatpickr("#pDate", {
     dateFormat: "Y-m-d",
     allowInput: false
   });
