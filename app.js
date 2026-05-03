@@ -54,8 +54,6 @@ onAuthStateChanged(auth, (user) => {
 // MODALS
 addBtn.onclick = () => {
   modal.classList.remove("hidden");
-
-  // ✅ Initialize calendar ONLY when modal opens  
 };
 modal.onclick = (e) => e.target === modal && modal.classList.add("hidden");
 testModal.onclick = (e) => e.target === testModal && testModal.classList.add("hidden");
@@ -64,8 +62,8 @@ testModal.onclick = (e) => e.target === testModal && testModal.classList.add("hi
 saveBtn.onclick = async () => {
   console.log("USER:", auth.currentUser);
 
-if (!window.currentUserReady) {
-  alert("Login not ready yet. Wait 2 seconds and try again.");
+if (!auth.currentUser) {
+  alert("Please login again");
   return;
 }
 
@@ -77,20 +75,20 @@ if (!window.currentUserReady) {
   if (!name || !age || !date) return alert("Fill all fields");
 
   try {
-    await addDoc(collection(db, "patients"), {
-      name,
-      age,
-      gender,
-      admissionDate: date,
-      createdAt: serverTimestamp(),
-      createdBy: auth.currentUser.uid
-    });
+  await addDoc(collection(db, "patients"), {
+    name,
+    age,
+    gender,
+    admissionDate: date,
+    createdAt: serverTimestamp(),
+    createdBy: auth.currentUser.uid
+  });
 
-    console.log("✅ Patient saved");
+  console.log("✅ Saved to Firestore");
 
-  } catch (err) {
-    console.error("❌ Firestore error:", err);
-  }
+} catch (err) {
+  console.error("❌ Firestore error:", err);
+}
   pName.value = "";
   pAge.value = "";
   pDate.value = "";
