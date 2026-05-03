@@ -238,6 +238,7 @@ logsTab.onclick = () => {
 };
 
 
-flatpickr("#tDate", {
-  dateFormat: "Y-m-d"
+window.flatpickr("#tDate", {
+  dateFormat: "Y-m-d",
+  allowInput: false
 });
