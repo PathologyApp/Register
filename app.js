@@ -84,17 +84,21 @@ if (!window.currentUserReady) {
 
   if (!name || !age || !date) return alert("Fill all fields");
 
-  await addDoc(collection(db, "patients"), {
-    name,
-    age,
-    gender,
-    admissionDate: date,
-    createdAt: serverTimestamp(),
-    createdBy: auth.currentUser.displayName
-  });
+  try {
+    await addDoc(collection(db, "patients"), {
+      name,
+      age,
+      gender,
+      admissionDate: date,
+      createdAt: serverTimestamp(),
+      createdBy: auth.currentUser.uid
+    });
 
-  await addLog("Added Patient", name);
+    console.log("✅ Patient saved");
 
+  } catch (err) {
+    console.error("❌ Firestore error:", err);
+  }
   pName.value = "";
   pAge.value = "";
   pDate.value = "";
