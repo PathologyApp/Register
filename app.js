@@ -1,296 +1,340 @@
-import { login } from "./auth.js";
 import { auth, db } from "./firebase.js";
+import { login, logout } from "./auth.js";
 
-import { onAuthStateChanged } 
-from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { onAuthStateChanged }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-import { 
+import {
   collection, addDoc, serverTimestamp,
-  onSnapshot, query, orderBy 
+  onSnapshot, query, orderBy
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-// DOM
-const loginBtn = document.getElementById("loginBtn");
-const userInfo = document.getElementById("userInfo");
+// ── DOM refs ─────────────────────────────────────────────
+const authScreen    = document.getElementById("authScreen");
+const appEl         = document.getElementById("app");
+const loginBtn      = document.getElementById("loginBtn");
+const logoutBtn     = document.getElementById("logoutBtn");
+const userInfo      = document.getElementById("userInfo");
+const authError     = document.getElementById("authError");
 
-const addBtn = document.getElementById("addPatientBtn");
-const modal = document.getElementById("patientModal");
-const saveBtn = document.getElementById("savePatient");
+const addPatientBtn = document.getElementById("addPatientBtn");
+const patientModal  = document.getElementById("patientModal");
+const closePatientModal = document.getElementById("closePatientModal");
+const savePatientBtn = document.getElementById("savePatient");
 
-const testModal = document.getElementById("testModal");
-const saveTestBtn = document.getElementById("saveTest");
+const testModal     = document.getElementById("testModal");
+const closeTestModal = document.getElementById("closeTestModal");
+const saveTestBtn   = document.getElementById("saveTest");
 
-const patientList = document.getElementById("patientList");
-const logsView = document.getElementById("logsView");
-
-const patientsTab = document.getElementById("patientsTab");
-const logsTab = document.getElementById("logsTab");
+const patientList   = document.getElementById("patientList");
+const logsView      = document.getElementById("logsView");
+const patientsTab   = document.getElementById("patientsTab");
+const logsTab       = document.getElementById("logsTab");
+const toast         = document.getElementById("toast");
 
 let currentPatientId = null;
 let isLoaded = false;
-let patientDatePicker = null;
-let testDatePicker = null;
 
-// LOGIN
-loginBtn.onclick = async () => await login();
+// ── Toast ─────────────────────────────────────────────────
+function showToast(msg, type = "info") {
+  toast.textContent = msg;
+  toast.className = `toast ${type} show`;
+  setTimeout(() => { toast.className = "toast"; }, 3000);
+}
 
-// AUTH
+// ── Set today's date as default on date inputs ────────────
+function setDefaultDate(inputId) {
+  const el = document.getElementById(inputId);
+  if (el && !el.value) {
+    el.value = new Date().toISOString().split("T")[0];
+  }
+}
+
+// ── Auth ──────────────────────────────────────────────────
+loginBtn.onclick = async () => {
+  loginBtn.disabled = true;
+  loginBtn.textContent = "Signing in...";
+  authError.textContent = "";
+  try {
+    await login();
+  } catch (err) {
+    authError.textContent = "Login failed: " + err.message;
+    loginBtn.disabled = false;
+    loginBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 2.9l5.7-5.7C34.1 6.7 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 15.8 18.9 12 24 12c3.1 0 5.8 1.1 8 2.9l5.7-5.7C34.1 6.7 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-1.9 13.5-5.1l-6.2-5.2C29.3 35.5 26.7 36 24 36c-5.1 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.5 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.3 5.6l6.2 5.2C37.2 38.3 44 33 44 24c0-1.3-.1-2.6-.4-3.9z"/></svg>Sign in with Google`;
+  }
+};
+
+logoutBtn.onclick = async () => {
+  await logout();
+  isLoaded = false;
+};
+
 onAuthStateChanged(auth, (user) => {
   if (user) {
-    window.currentUserReady = true;
-    const name = user.displayName || user.email.split("@")[0];
-    userInfo.innerText = name;
-    loginBtn.style.display = "none";
-
-      if (!isLoaded) {
+    authScreen.classList.add("hidden");
+    appEl.classList.remove("hidden");
+    userInfo.textContent = user.displayName || user.email.split("@")[0];
+    if (!isLoaded) {
       loadPatients();
       loadLogs();
       isLoaded = true;
     }
   } else {
-    loginBtn.style.display = "block";
-    userInfo.innerText = "";
+    authScreen.classList.remove("hidden");
+    appEl.classList.add("hidden");
+    patientList.innerHTML = "";
+    logsView.innerHTML = "";
+    loginBtn.disabled = false;
+    loginBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 2.9l5.7-5.7C34.1 6.7 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 15.8 18.9 12 24 12c3.1 0 5.8 1.1 8 2.9l5.7-5.7C34.1 6.7 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-1.9 13.5-5.1l-6.2-5.2C29.3 35.5 26.7 36 24 36c-5.1 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.5 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.3 5.6l6.2 5.2C37.2 38.3 44 33 44 24c0-1.3-.1-2.6-.4-3.9z"/></svg>Sign in with Google`;
   }
 });
 
-// MODALS
-addBtn.onclick = () => {
-  modal.classList.remove("hidden");
-  // Re-initialize flatpickr for pDate when modal opens (most reliable approach)
-  if (typeof flatpickr !== "undefined") {
-    if (patientDatePicker) patientDatePicker.destroy();
-    patientDatePicker = flatpickr("#pDate", {
-      dateFormat: "Y-m-d",
-      allowInput: true,
-      disableMobile: false
-    });
-  }
+// ── Patient Modal ─────────────────────────────────────────
+addPatientBtn.onclick = () => {
+  patientModal.classList.remove("hidden");
+  setDefaultDate("pDate");
+  document.getElementById("pName").focus();
 };
-modal.onclick = (e) => e.target === modal && modal.classList.add("hidden");
-testModal.onclick = (e) => e.target === testModal && testModal.classList.add("hidden");
+closePatientModal.onclick = () => patientModal.classList.add("hidden");
+patientModal.onclick = (e) => { if (e.target === patientModal) patientModal.classList.add("hidden"); };
 
-// SAVE PATIENT
-saveBtn.onclick = async () => {
-  if (!auth.currentUser) {
-    alert("Please login first before adding a patient.");
-    return;
-  }
+// ── Save Patient ──────────────────────────────────────────
+savePatientBtn.onclick = async () => {
+  if (!auth.currentUser) { showToast("Please login first", "error"); return; }
 
-  const name = document.getElementById("pName").value.trim();
-  const age = document.getElementById("pAge").value.trim();
+  const name   = document.getElementById("pName").value.trim();
+  const age    = document.getElementById("pAge").value.trim();
   const gender = document.getElementById("pGender").value;
-  const date = document.getElementById("pDate").value.trim();
+  const date   = document.getElementById("pDate").value;
 
-  if (!name || !age || !date) return alert("Please fill in all fields (Name, Age, Date).");
+  if (!name)   { showToast("Please enter patient name", "error"); return; }
+  if (!age)    { showToast("Please enter age", "error"); return; }
+  if (!date)   { showToast("Please select admission date", "error"); return; }
 
-  saveBtn.disabled = true;
-  saveBtn.textContent = "Saving...";
+  savePatientBtn.disabled = true;
+  savePatientBtn.textContent = "Saving…";
 
   try {
     await addDoc(collection(db, "patients"), {
-      name,
-      age,
-      gender,
+      name, age, gender,
       admissionDate: date,
       createdAt: serverTimestamp(),
       createdBy: auth.currentUser.uid
     });
 
     await addLog("Added Patient", name);
+    showToast(`✓ ${name} added`, "success");
 
     document.getElementById("pName").value = "";
     document.getElementById("pAge").value = "";
-    if (patientDatePicker) patientDatePicker.clear();
-    modal.classList.add("hidden");
+    document.getElementById("pDate").value = "";
+    patientModal.classList.add("hidden");
   } catch (err) {
     console.error("Firestore error:", err);
-    alert("Failed to save patient: " + err.message);
+    showToast("Save failed: " + err.message, "error");
   } finally {
-    saveBtn.disabled = false;
-    saveBtn.textContent = "Save";
+    savePatientBtn.disabled = false;
+    savePatientBtn.textContent = "Save Patient";
   }
 };
 
-// LOAD PATIENTS
+// ── Load Patients ─────────────────────────────────────────
 function loadPatients() {
   const q = query(collection(db, "patients"), orderBy("admissionDate", "desc"));
 
   onSnapshot(q, (snapshot) => {
     patientList.innerHTML = "";
 
+    if (snapshot.empty) {
+      patientList.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">📋</div>
+          <p>No patients yet. Tap <strong>+</strong> to add one.</p>
+        </div>`;
+      return;
+    }
+
     snapshot.forEach(docSnap => {
-      const p = docSnap.data();
+      const p  = docSnap.data();
       const id = docSnap.id;
 
-      const div = document.createElement("div");
-      div.className = "patient-card";
-
-      div.innerHTML = `
-        <div class="patient-header">
-          <strong>${p.name}</strong>
-          <span>${p.admissionDate}</span>
+      const card = document.createElement("div");
+      card.className = "patient-card";
+      card.innerHTML = `
+        <div class="patient-header" id="hdr-${id}">
+          <span class="patient-name">${p.name}</span>
+          <div class="patient-meta">
+            <span class="patient-badge">${p.gender} · ${p.age}y</span>
+            <span class="patient-date">${formatDate(p.admissionDate)}</span>
+            <span class="chevron" id="chev-${id}">▾</span>
+          </div>
         </div>
-
         <div class="patient-body hidden" id="body-${id}">
-          <div>Age: ${p.age} | ${p.gender}</div>
-          <div id="tests-${id}">Loading...</div>
-          <button class="addTestBtn" data-id="${id}">+ Add Test</button>
-        </div>
-      `;
+          <div class="patient-details">
+            <span>🗓 Admitted: ${formatDate(p.admissionDate)}</span>
+          </div>
+          <div class="tests-section">
+            <div class="tests-label">Lab Tests</div>
+            <div id="tests-${id}"><div class="no-tests">Loading…</div></div>
+            <button class="add-test-btn" data-id="${id}">+ Add Test</button>
+          </div>
+        </div>`;
 
-      div.querySelector(".patient-header").onclick = () => {
-        const body = document.getElementById(`body-${id}`);
+      card.querySelector(`#hdr-${id}`).onclick = () => {
+        const body  = document.getElementById(`body-${id}`);
+        const chev  = document.getElementById(`chev-${id}`);
+        const open  = !body.classList.contains("hidden");
         body.classList.toggle("hidden");
-
+        chev.classList.toggle("open", !open);
         if (!body.dataset.loaded) {
           loadTests(id);
-          body.dataset.loaded = true;
+          body.dataset.loaded = "1";
         }
       };
 
-      patientList.appendChild(div);
+      patientList.appendChild(card);
     });
+  }, (err) => {
+    console.error("Load patients error:", err);
+    showToast("Error loading patients: " + err.message, "error");
   });
 }
 
-// LOAD TESTS
+// ── Load Tests ────────────────────────────────────────────
 function loadTests(patientId) {
   const q = query(
     collection(db, `patients/${patientId}/tests`),
     orderBy("testDate", "desc")
   );
-
   const container = document.getElementById(`tests-${patientId}`);
 
   onSnapshot(q, (snapshot) => {
     container.innerHTML = "";
-
     if (snapshot.empty) {
-      container.innerHTML = "<i>No tests</i>";
+      container.innerHTML = `<div class="no-tests">No tests added yet</div>`;
       return;
     }
-
     snapshot.forEach(doc => {
       const t = doc.data();
-
       const div = document.createElement("div");
       div.className = "test-item";
-
-      const amountStr = t.amount != null ? `<span style="color:#2d7ff9;font-weight:600">₹${t.amount}</span>` : "";
-
       div.innerHTML = `
-        ${t.testName}
-        <span style="float:right">${amountStr} &nbsp; ${t.testDate}</span>
-      `;
-
+        <span class="test-name">${t.testName}</span>
+        <span class="test-right">
+          ${t.amount ? `<span class="test-amount">₹${t.amount}</span>` : ""}
+          <span class="test-date">${formatDate(t.testDate)}</span>
+        </span>`;
       container.appendChild(div);
     });
   });
 }
 
-// OPEN TEST MODAL
+// ── Test Modal ────────────────────────────────────────────
 document.addEventListener("click", (e) => {
-  if (e.target.classList.contains("addTestBtn")) {
+  if (e.target.classList.contains("add-test-btn")) {
     currentPatientId = e.target.dataset.id;
     testModal.classList.remove("hidden");
+    setDefaultDate("tDate");
+    document.getElementById("tName").focus();
   }
 });
+closeTestModal.onclick = () => testModal.classList.add("hidden");
+testModal.onclick = (e) => { if (e.target === testModal) testModal.classList.add("hidden"); };
 
-// SAVE TEST
+// ── Save Test ─────────────────────────────────────────────
 saveTestBtn.onclick = async () => {
-  if (!auth.currentUser) return alert("Login required");
+  if (!auth.currentUser) { showToast("Login required", "error"); return; }
 
-  const name = document.getElementById("tName").value.trim();
-  const date = document.getElementById("tDate").value.trim();
+  const name   = document.getElementById("tName").value.trim();
+  const date   = document.getElementById("tDate").value;
   const amount = parseFloat(document.getElementById("tAmount").value) || 0;
 
-  if (!name || !date) return alert("Fill all fields");
+  if (!name) { showToast("Enter test name", "error"); return; }
+  if (!date) { showToast("Select a test date", "error"); return; }
 
   saveTestBtn.disabled = true;
-  saveTestBtn.textContent = "Saving...";
+  saveTestBtn.textContent = "Saving…";
 
   try {
-    await addDoc(
-      collection(db, `patients/${currentPatientId}/tests`),
-      {
-        testName: name,
-        testDate: date,
-        amount: amount,
-        addedBy: auth.currentUser.displayName,
-        addedAt: serverTimestamp()
-      }
-    );
+    await addDoc(collection(db, `patients/${currentPatientId}/tests`), {
+      testName: name,
+      testDate: date,
+      amount,
+      addedBy: auth.currentUser.displayName || auth.currentUser.email,
+      addedAt: serverTimestamp()
+    });
 
     await addLog("Added Test", `${name} (₹${amount})`);
+    showToast(`✓ Test "${name}" saved`, "success");
 
     document.getElementById("tName").value = "";
+    document.getElementById("tDate").value = "";
     document.getElementById("tAmount").value = "";
-    if (testDatePicker) testDatePicker.clear();
     testModal.classList.add("hidden");
   } catch (err) {
     console.error("Firestore error:", err);
-    alert("Failed to save test: " + err.message);
+    showToast("Save failed: " + err.message, "error");
   } finally {
     saveTestBtn.disabled = false;
     saveTestBtn.textContent = "Save Test";
   }
 };
 
-// LOG SYSTEM
+// ── Logs ──────────────────────────────────────────────────
 async function addLog(action, item) {
-  await addDoc(collection(db, "logs"), {
-    action,
-    item,
-    by: auth.currentUser.displayName,
-    time: serverTimestamp()
-  });
+  try {
+    await addDoc(collection(db, "logs"), {
+      action, item,
+      by: auth.currentUser?.displayName || "Unknown",
+      time: serverTimestamp()
+    });
+  } catch (e) { console.warn("Log failed:", e); }
 }
 
-// LOAD LOGS
 function loadLogs() {
   const q = query(collection(db, "logs"), orderBy("time", "desc"));
-
   onSnapshot(q, (snapshot) => {
     logsView.innerHTML = "";
-
+    if (snapshot.empty) {
+      logsView.innerHTML = `<div class="empty-state"><div class="empty-icon">📝</div><p>No activity yet.</p></div>`;
+      return;
+    }
     snapshot.forEach(doc => {
       const l = doc.data();
-
       const div = document.createElement("div");
       div.className = "log-item";
-
       div.innerHTML = `
-        <strong>${l.action}</strong><br>
-        ${l.item}<br>
-        By: ${l.by}
-      `;
-
+        <div class="log-dot"></div>
+        <div>
+          <div class="log-action">${l.action}</div>
+          <div class="log-item-name">${l.item}</div>
+          <div class="log-by">by ${l.by}</div>
+        </div>`;
       logsView.appendChild(div);
     });
   });
 }
 
-// TABS
+// ── Tabs ──────────────────────────────────────────────────
 patientsTab.onclick = () => {
-  patientList.style.display = "block";
+  patientList.classList.remove("hidden");
   logsView.classList.add("hidden");
+  patientsTab.classList.add("active");
+  logsTab.classList.remove("active");
 };
-
 logsTab.onclick = () => {
-  patientList.style.display = "none";
+  patientList.classList.add("hidden");
   logsView.classList.remove("hidden");
+  logsTab.classList.add("active");
+  patientsTab.classList.remove("active");
 };
 
-// FLATPICKR — initialize tDate at load time
-// pDate is initialized dynamically when the patient modal opens (see addBtn.onclick)
-if (typeof flatpickr !== "undefined") {
-  testDatePicker = flatpickr("#tDate", {
-    dateFormat: "Y-m-d",
-    allowInput: true,
-    disableMobile: false
-  });
-} else {
-  console.warn("flatpickr not loaded — falling back to native date inputs");
-  document.getElementById("pDate").type = "date";
-  document.getElementById("tDate").type = "date";
+// ── Helpers ───────────────────────────────────────────────
+function formatDate(dateStr) {
+  if (!dateStr) return "—";
+  try {
+    const [y, m, d] = dateStr.split("-");
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return `${d} ${months[parseInt(m,10)-1]} ${y}`;
+  } catch { return dateStr; }
 }

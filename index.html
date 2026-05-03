@@ -1,60 +1,114 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Pathology Register</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css"/>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 </head>
 <body>
 
-<header>
-  <h1>Pathology Register</h1>
-  <button id="loginBtn">Login with Google</button>
-  <div id="userInfo"></div>
-</header>
-
-<!-- Tabs -->
-<div class="tabs">
-  <button id="patientsTab">Patients</button>
-  <button id="logsTab">Logs</button>
-</div>
-
-<main>
-  <div id="patientList"></div>
-  <div id="logsView" class="hidden"></div>
-</main>
-
-<button id="addPatientBtn">＋</button>
-
-<!-- Patient Modal -->
-<div id="patientModal" class="modal hidden">
-  <div class="modal-content">
-    <h2>Add Patient</h2>
-    <input id="pName" placeholder="Name"/>
-    <input id="pAge" type="number" placeholder="Age"/>
-    <select id="pGender">
-      <option>Male</option>
-      <option>Female</option>
-    </select>
-    <input id="pDate" type="text" placeholder="Admission Date"/>
-    <button id="savePatient">Save</button>
+  <!-- Auth Screen -->
+  <div id="authScreen">
+    <div class="auth-card">
+      <div class="auth-icon">🧪</div>
+      <h1>Pathology Register</h1>
+      <p class="auth-sub">Secure patient &amp; test record management</p>
+      <button id="loginBtn" class="btn-google">
+        <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 2.9l5.7-5.7C34.1 6.7 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 15.8 18.9 12 24 12c3.1 0 5.8 1.1 8 2.9l5.7-5.7C34.1 6.7 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-1.9 13.5-5.1l-6.2-5.2C29.3 35.5 26.7 36 24 36c-5.1 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.5 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.3 5.6l6.2 5.2C37.2 38.3 44 33 44 24c0-1.3-.1-2.6-.4-3.9z"/></svg>
+        Sign in with Google
+      </button>
+      <p id="authError" class="auth-error"></p>
+    </div>
   </div>
-</div>
 
-<!-- Test Modal -->
-<div id="testModal" class="modal hidden">
-  <div class="modal-content">
-    <h2>Add Test</h2>
-    <input id="tName" placeholder="Test Name"/>
-    <input id="tDate" type="text" placeholder="Select Date"/>
-    <input id="tAmount" type="number" placeholder="Amount (₹)" min="0" step="1"/>
-    <button id="saveTest">Save Test</button>
+  <!-- Main App -->
+  <div id="app" class="hidden">
+    <header>
+      <div class="header-brand">
+        <span class="brand-icon">🧪</span>
+        <span class="brand-name">Pathology Register</span>
+      </div>
+      <div class="header-user">
+        <span id="userInfo"></span>
+        <button id="logoutBtn" class="btn-logout">Logout</button>
+      </div>
+    </header>
+
+    <div class="tabs">
+      <button id="patientsTab" class="tab active">Patients</button>
+      <button id="logsTab" class="tab">Activity Log</button>
+    </div>
+
+    <main>
+      <div id="patientList"></div>
+      <div id="logsView" class="hidden"></div>
+    </main>
+
+    <button id="addPatientBtn" class="fab" title="Add Patient">+</button>
   </div>
-</div>
 
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script type="module" src="app.js"></script>
+  <!-- Patient Modal -->
+  <div id="patientModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Add Patient</h2>
+        <button class="modal-close" id="closePatientModal">✕</button>
+      </div>
+      <div class="form-group">
+        <label for="pName">Patient Name</label>
+        <input id="pName" type="text" placeholder="e.g. Ramesh Kumar" autocomplete="off"/>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="pAge">Age</label>
+          <input id="pAge" type="number" placeholder="Age" min="0" max="150"/>
+        </div>
+        <div class="form-group">
+          <label for="pGender">Gender</label>
+          <select id="pGender">
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="pDate">Admission Date</label>
+        <input id="pDate" type="date"/>
+      </div>
+      <button id="savePatient" class="btn-primary">Save Patient</button>
+    </div>
+  </div>
+
+  <!-- Test Modal -->
+  <div id="testModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Add Test</h2>
+        <button class="modal-close" id="closeTestModal">✕</button>
+      </div>
+      <div class="form-group">
+        <label for="tName">Test Name</label>
+        <input id="tName" type="text" placeholder="e.g. CBC, LFT, Urine R/E" autocomplete="off"/>
+      </div>
+      <div class="form-group">
+        <label for="tDate">Test Date</label>
+        <input id="tDate" type="date"/>
+      </div>
+      <div class="form-group">
+        <label for="tAmount">Amount (₹)</label>
+        <input id="tAmount" type="number" placeholder="0" min="0" step="1"/>
+      </div>
+      <button id="saveTest" class="btn-primary">Save Test</button>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <script type="module" src="app.js"></script>
 </body>
 </html>
