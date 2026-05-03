@@ -52,7 +52,18 @@ onAuthStateChanged(auth, (user) => {
 });
 
 // MODALS
-addBtn.onclick = () => modal.classList.remove("hidden");
+addBtn.onclick = () => {
+  modal.classList.remove("hidden");
+
+  // ✅ Initialize calendar ONLY when modal opens
+  if (window.flatpickr && !modal.dataset.init) {
+    window.flatpickr("#pDate", {
+      dateFormat: "Y-m-d",
+      allowInput: false
+    });
+    modal.dataset.init = "true";
+  }
+};
 modal.onclick = (e) => e.target === modal && modal.classList.add("hidden");
 testModal.onclick = (e) => e.target === testModal && testModal.classList.add("hidden");
 
@@ -87,6 +98,7 @@ if (!window.currentUserReady) {
   pAge.value = "";
   pDate.value = "";
   modal.classList.add("hidden");
+  console.log("Saving:", name, age, date);
 };
 
 // LOAD PATIENTS
@@ -246,11 +258,6 @@ logsTab.onclick = () => {
 
 if (window.flatpickr) {
   window.flatpickr("#tDate", {
-    dateFormat: "Y-m-d",
-    allowInput: false
-  });
-
-  window.flatpickr("#pDate", {
     dateFormat: "Y-m-d",
     allowInput: false
   });
