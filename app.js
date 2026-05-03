@@ -28,6 +28,8 @@ const logsTab = document.getElementById("logsTab");
 
 let currentPatientId = null;
 let isLoaded = false;
+let patientDatePicker = null;
+let testDatePicker = null;
 
 // LOGIN
 loginBtn.onclick = async () => await login();
@@ -54,6 +56,15 @@ onAuthStateChanged(auth, (user) => {
 // MODALS
 addBtn.onclick = () => {
   modal.classList.remove("hidden");
+  // Re-initialize flatpickr for pDate when modal opens (most reliable approach)
+  if (typeof flatpickr !== "undefined") {
+    if (patientDatePicker) patientDatePicker.destroy();
+    patientDatePicker = flatpickr("#pDate", {
+      dateFormat: "Y-m-d",
+      allowInput: true,
+      disableMobile: false
+    });
+  }
 };
 modal.onclick = (e) => e.target === modal && modal.classList.add("hidden");
 testModal.onclick = (e) => e.target === testModal && testModal.classList.add("hidden");
@@ -165,9 +176,11 @@ function loadTests(patientId) {
       const div = document.createElement("div");
       div.className = "test-item";
 
+      const amountStr = t.amount != null ? `<span style="color:#2d7ff9;font-weight:600">₹${t.amount}</span>` : "";
+
       div.innerHTML = `
         ${t.testName}
-        <span style="float:right">${t.testDate}</span>
+        <span style="float:right">${amountStr} &nbsp; ${t.testDate}</span>
       `;
 
       container.appendChild(div);
@@ -189,6 +202,7 @@ saveTestBtn.onclick = async () => {
 
   const name = document.getElementById("tName").value.trim();
   const date = document.getElementById("tDate").value.trim();
+  const amount = parseFloat(document.getElementById("tAmount").value) || 0;
 
   if (!name || !date) return alert("Fill all fields");
 
@@ -201,14 +215,16 @@ saveTestBtn.onclick = async () => {
       {
         testName: name,
         testDate: date,
+        amount: amount,
         addedBy: auth.currentUser.displayName,
         addedAt: serverTimestamp()
       }
     );
 
-    await addLog("Added Test", name);
+    await addLog("Added Test", `${name} (₹${amount})`);
 
     document.getElementById("tName").value = "";
+    document.getElementById("tAmount").value = "";
     if (testDatePicker) testDatePicker.clear();
     testModal.classList.add("hidden");
   } catch (err) {
@@ -265,29 +281,16 @@ logsTab.onclick = () => {
   logsView.classList.remove("hidden");
 };
 
-// FLATPICKR — initialize both date pickers
-// flatpickr CDN loads as a regular (non-module) script before this module,
-// so window.flatpickr is available here.
-let patientDatePicker = null;
-let testDatePicker = null;
-
+// FLATPICKR — initialize tDate at load time
+// pDate is initialized dynamically when the patient modal opens (see addBtn.onclick)
 if (typeof flatpickr !== "undefined") {
-  patientDatePicker = flatpickr("#pDate", {
-    dateFormat: "Y-m-d",
-    allowInput: false,
-    disableMobile: false  // use flatpickr's own mobile-friendly picker
-  });
-
   testDatePicker = flatpickr("#tDate", {
     dateFormat: "Y-m-d",
-    allowInput: false,
+    allowInput: true,
     disableMobile: false
   });
 } else {
   console.warn("flatpickr not loaded — falling back to native date inputs");
-  // Graceful fallback: switch to native type=date
   document.getElementById("pDate").type = "date";
-  document.getElementById("pDate").removeAttribute("readonly");
   document.getElementById("tDate").type = "date";
-  document.getElementById("tDate").removeAttribute("readonly");
 }
