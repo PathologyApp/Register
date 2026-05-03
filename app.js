@@ -58,9 +58,10 @@ addBtn.onclick = () => {
   // ✅ Initialize calendar ONLY when modal opens
   if (window.flatpickr && !modal.dataset.init) {
     window.flatpickr("#pDate", {
-      dateFormat: "Y-m-d",
-      allowInput: false
-    });
+  dateFormat: "Y-m-d",
+  allowInput: true,
+  disableMobile: false
+});
     modal.dataset.init = "true";
   }
 };
