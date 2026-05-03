@@ -40,7 +40,7 @@ onAuthStateChanged(auth, (user) => {
     userInfo.innerText = name;
     loginBtn.style.display = "none";
 
-    if (!isLoaded) {
+      if (!isLoaded) {
       loadPatients();
       loadLogs();
       isLoaded = true;
@@ -60,40 +60,44 @@ testModal.onclick = (e) => e.target === testModal && testModal.classList.add("hi
 
 // SAVE PATIENT
 saveBtn.onclick = async () => {
-  console.log("USER:", auth.currentUser);
+  if (!auth.currentUser) {
+    alert("Please login first before adding a patient.");
+    return;
+  }
 
-if (!auth.currentUser) {
-  alert("Please login again");
-  return;
-}
+  const name = document.getElementById("pName").value.trim();
+  const age = document.getElementById("pAge").value.trim();
+  const gender = document.getElementById("pGender").value;
+  const date = document.getElementById("pDate").value.trim();
 
-  const name = pName.value;
-  const age = pAge.value;
-  const gender = pGender.value;
-  const date = pDate.value;
+  if (!name || !age || !date) return alert("Please fill in all fields (Name, Age, Date).");
 
-  if (!name || !age || !date) return alert("Fill all fields");
+  saveBtn.disabled = true;
+  saveBtn.textContent = "Saving...";
 
   try {
-  await addDoc(collection(db, "patients"), {
-    name,
-    age,
-    gender,
-    admissionDate: date,
-    createdAt: serverTimestamp(),
-    createdBy: auth.currentUser.uid
-  });
+    await addDoc(collection(db, "patients"), {
+      name,
+      age,
+      gender,
+      admissionDate: date,
+      createdAt: serverTimestamp(),
+      createdBy: auth.currentUser.uid
+    });
 
-  console.log("✅ Saved to Firestore");
+    await addLog("Added Patient", name);
 
-} catch (err) {
-  console.error("❌ Firestore error:", err);
-}
-  pName.value = "";
-  pAge.value = "";
-  pDate.value = "";
-  modal.classList.add("hidden");
-  console.log("Saving:", name, age, date);
+    document.getElementById("pName").value = "";
+    document.getElementById("pAge").value = "";
+    if (patientDatePicker) patientDatePicker.clear();
+    modal.classList.add("hidden");
+  } catch (err) {
+    console.error("Firestore error:", err);
+    alert("Failed to save patient: " + err.message);
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = "Save";
+  }
 };
 
 // LOAD PATIENTS
@@ -183,26 +187,37 @@ document.addEventListener("click", (e) => {
 saveTestBtn.onclick = async () => {
   if (!auth.currentUser) return alert("Login required");
 
-  const name = tName.value;
-  const date = tDate.value;
+  const name = document.getElementById("tName").value.trim();
+  const date = document.getElementById("tDate").value.trim();
 
   if (!name || !date) return alert("Fill all fields");
 
-  await addDoc(
-    collection(db, `patients/${currentPatientId}/tests`),
-    {
-      testName: name,
-      testDate: date,
-      addedBy: auth.currentUser.displayName,
-      addedAt: serverTimestamp()
-    }
-  );
+  saveTestBtn.disabled = true;
+  saveTestBtn.textContent = "Saving...";
 
-  await addLog("Added Test", name);
+  try {
+    await addDoc(
+      collection(db, `patients/${currentPatientId}/tests`),
+      {
+        testName: name,
+        testDate: date,
+        addedBy: auth.currentUser.displayName,
+        addedAt: serverTimestamp()
+      }
+    );
 
-  tName.value = "";
-  tDate.value = "";
-  testModal.classList.add("hidden");
+    await addLog("Added Test", name);
+
+    document.getElementById("tName").value = "";
+    if (testDatePicker) testDatePicker.clear();
+    testModal.classList.add("hidden");
+  } catch (err) {
+    console.error("Firestore error:", err);
+    alert("Failed to save test: " + err.message);
+  } finally {
+    saveTestBtn.disabled = false;
+    saveTestBtn.textContent = "Save Test";
+  }
 };
 
 // LOG SYSTEM
@@ -250,10 +265,29 @@ logsTab.onclick = () => {
   logsView.classList.remove("hidden");
 };
 
+// FLATPICKR — initialize both date pickers
+// flatpickr CDN loads as a regular (non-module) script before this module,
+// so window.flatpickr is available here.
+let patientDatePicker = null;
+let testDatePicker = null;
 
-if (window.flatpickr) {
-  window.flatpickr("#tDate", {
+if (typeof flatpickr !== "undefined") {
+  patientDatePicker = flatpickr("#pDate", {
     dateFormat: "Y-m-d",
-    allowInput: false
+    allowInput: false,
+    disableMobile: false  // use flatpickr's own mobile-friendly picker
   });
+
+  testDatePicker = flatpickr("#tDate", {
+    dateFormat: "Y-m-d",
+    allowInput: false,
+    disableMobile: false
+  });
+} else {
+  console.warn("flatpickr not loaded — falling back to native date inputs");
+  // Graceful fallback: switch to native type=date
+  document.getElementById("pDate").type = "date";
+  document.getElementById("pDate").removeAttribute("readonly");
+  document.getElementById("tDate").type = "date";
+  document.getElementById("tDate").removeAttribute("readonly");
 }
