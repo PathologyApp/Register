@@ -65,6 +65,16 @@ saveBtn.onclick = async () => {
   const date = pDate.value;
 
   if (!name || !age || !date) return alert("Fill all fields");
+
+  await addDoc(collection(db, "patients"), {
+    name,
+    age,
+    gender,
+    admissionDate: date,
+    createdAt: serverTimestamp(),
+    createdBy: auth.currentUser.displayName
+  });
+
   await addLog("Added Patient", name);
 
   pName.value = "";
