@@ -1,8 +1,41 @@
-<html>
-<Title>
-Pathology Lab Register
-</Title>
-<Body>
-App in progress
-</Body>
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pathology Register</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+  <header>
+    <h1>Pathology Register</h1>
+    <button id="loginBtn">Login with Google</button>
+    <div id="userInfo"></div>
+  </header>
+
+  <main>
+    <div id="patientList"></div>
+  </main>
+
+  <button id="addPatientBtn">＋</button>
+
+  <!-- Modal -->
+  <div id="patientModal" class="modal hidden">
+    <div class="modal-content">
+      <h2>Add Patient</h2>
+      <input id="pName" placeholder="Name"/>
+      <input id="pAge" type="number" placeholder="Age"/>
+      <select id="pGender">
+        <option>Male</option>
+        <option>Female</option>
+      </select>
+      <input id="pDate" type="date"/>
+      <button id="savePatient">Save</button>
+    </div>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
 </html>
