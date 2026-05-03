@@ -35,7 +35,8 @@ loginBtn.onclick = async () => await login();
 // AUTH
 onAuthStateChanged(auth, (user) => {
   if (user) {
-    userInfo.innerText = user.displayName || user.email;
+    const name = user.displayName || user.email.split("@")[0];
+    userInfo.innerText = name;
     loginBtn.style.display = "none";
 
     if (!isLoaded) {
@@ -64,14 +65,6 @@ saveBtn.onclick = async () => {
   const date = pDate.value;
 
   if (!name || !age || !date) return alert("Fill all fields");
-
-  await addDoc(collection(db, "patients"), {
-    name, age, gender,
-    admissionDate: date,
-    createdAt: serverTimestamp(),
-    createdBy: auth.currentUser.displayName
-  });
-
   await addLog("Added Patient", name);
 
   pName.value = "";
@@ -233,3 +226,8 @@ logsTab.onclick = () => {
   patientList.style.display = "none";
   logsView.classList.remove("hidden");
 };
+
+
+flatpickr("#tDate", {
+  dateFormat: "Y-m-d"
+});
