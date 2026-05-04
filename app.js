@@ -35,8 +35,13 @@ const closeTestModal    = document.getElementById("closeTestModal");
 const saveTestBtn       = document.getElementById("saveTest");
 
 const patientList       = document.getElementById("patientList");
+const paymentView       = document.getElementById("paymentView");
+const paymentList       = document.getElementById("paymentList");
+const totalPendingGlobal = document.getElementById("totalPendingGlobal");
 const logsView          = document.getElementById("logsView");
+
 const patientsTab       = document.getElementById("patientsTab");
+const paymentsTab       = document.getElementById("paymentsTab");
 const logsTab           = document.getElementById("logsTab");
 const toastEl           = document.getElementById("toast");
 
@@ -247,11 +252,20 @@ async function loadTests(patientId) {
     pTests.forEach(t => {
       const div = document.createElement("div");
       div.className = "test-item";
+      const isPaid = !!t.paid;
       div.innerHTML = `
-        <span class="test-name">${t.test_name}</span>
+        <div class="test-left-info">
+          <span class="test-name">${t.test_name}</span>
+          <div class="test-sub-info">
+            ${t.amount ? `<span class="test-amount">₹${t.amount}</span>` : ""}
+            <span class="test-date">${formatDate(t.test_date)}</span>
+          </div>
+        </div>
         <div class="test-right">
-          ${t.amount ? `<span class="test-amount">₹${t.amount}</span>` : ""}
-          <span class="test-date">${formatDate(t.test_date)}</span>
+          <div class="payment-toggle ${isPaid ? 'paid' : 'pending'}" data-id="${t.id}" data-pid="${patientId}" data-paid="${isPaid}">
+            <span class="payment-label">${isPaid ? 'Paid' : 'Pending'}</span>
+            <div class="toggle-switch"></div>
+          </div>
           ${isAdmin ? `<button class="delete-test-btn" data-id="${t.id}" data-name="${t.test_name}" data-pid="${patientId}">✕</button>` : ""}
         </div>`;
       container.appendChild(div);
@@ -259,8 +273,24 @@ async function loadTests(patientId) {
   } catch (err) { container.innerHTML = `<div class="no-tests">Error</div>`; }
 }
 
-// ── Deletes (Restricted to Admin) ─────────────────────────
+async function togglePaymentStatus(id, patientId, currentPaid) {
+  try {
+    const newStatus = !currentPaid;
+    await (await supabase.from(getTable("tests"))).update(id, { paid: newStatus });
+    await loadTests(patientId);
+    await loadPatients(); // Update total if needed
+    showToast(newStatus ? "Payment Received" : "Marked as Pending", "success");
+  } catch (e) { showToast("Update failed", "error"); }
+}
+
 document.addEventListener("click", async (e) => {
+  const toggle = e.target.closest('.payment-toggle');
+  if (toggle) {
+    const { id, pid, paid } = toggle.dataset;
+    togglePaymentStatus(id, pid, paid === 'true');
+    return;
+  }
+
   if (!isAdmin) return; // Fail-safe check
   
   if (e.target.classList.contains("delete-patient-btn")) {
@@ -310,7 +340,8 @@ saveTestBtn.onclick = async () => {
       test_name: name,
       test_date: date,
       amount: amount,
-      added_by: auth.currentUser.email
+      added_by: auth.currentUser.email,
+      paid: false
     });
     await addLog("Added Test", name);
     showToast(`✓ Test saved`, "success");
@@ -348,17 +379,83 @@ async function loadLogs() {
 
 patientsTab.onclick = () => {
   patientList.classList.remove("hidden");
+  paymentView.classList.add("hidden");
   logsView.classList.add("hidden");
   patientsTab.classList.add("active");
+  paymentsTab.classList.remove("active");
   logsTab.classList.remove("active");
+};
+paymentsTab.onclick = async () => {
+  patientList.classList.add("hidden");
+  paymentView.classList.remove("hidden");
+  logsView.classList.add("hidden");
+  paymentsTab.classList.add("active");
+  patientsTab.classList.remove("active");
+  logsTab.classList.remove("active");
+  await loadPayments();
 };
 logsTab.onclick = async () => {
   patientList.classList.add("hidden");
+  paymentView.classList.add("hidden");
   logsView.classList.remove("hidden");
   logsTab.classList.add("active");
   patientsTab.classList.remove("active");
+  paymentsTab.classList.remove("active");
   await loadLogs();
 };
+
+async function loadPayments() {
+  paymentList.innerHTML = `<div class="loading-state">Analyzing accounts...</div>`;
+  try {
+    const patients = await (await supabase.from(getTable("patients"))).select();
+    const tests = await (await supabase.from(getTable("tests"))).select();
+    
+    const pendingPatients = [];
+    let grandTotal = 0;
+
+    patients.forEach(p => {
+      const pPendingTests = tests.filter(t => t.patient_id == p.id && !t.paid);
+      if (pPendingTests.length > 0) {
+        const total = pPendingTests.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+        pendingPatients.push({ ...p, pendingTests: pPendingTests, total });
+        grandTotal += total;
+      }
+    });
+
+    totalPendingGlobal.textContent = `Total: ₹${grandTotal}`;
+    paymentList.innerHTML = "";
+
+    if (pendingPatients.length === 0) {
+      paymentList.innerHTML = `<div class="empty-state">No pending payments! 🎉</div>`;
+      return;
+    }
+
+    pendingPatients.sort((a,b) => b.total - a.total).forEach(item => {
+      const card = document.createElement("div");
+      card.className = "payment-card";
+      card.innerHTML = `
+        <div class="payment-card-header">
+          <div>
+            <span class="payment-patient-name">${item.name}</span>
+            <span class="payment-patient-date">Joined ${formatDate(item.admission_date)}</span>
+          </div>
+          <div class="payment-amount-due">₹${item.total}</div>
+        </div>
+        <div class="pending-tests-list">
+          ${item.pendingTests.map(t => `
+            <div class="pending-test-item">
+              <span class="pending-test-name">${t.test_name}</span>
+              <span class="pending-test-price">₹${t.amount || 0}</span>
+            </div>
+          `).join('')}
+        </div>
+      `;
+      paymentList.appendChild(card);
+    });
+  } catch (e) {
+    paymentList.innerHTML = `<div class="empty-state">Error loading payments.</div>`;
+  }
+}
 
 function setTodayIfEmpty(inputId) {
   const el = document.getElementById(inputId);
