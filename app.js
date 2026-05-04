@@ -1,13 +1,9 @@
-import { auth, db } from "./firebase.js";
+import { auth } from "./firebase.js";
 import { login, logout } from "./auth.js";
+import { supabase } from "./supabase.js";
 
 import { onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-
-import {
-  collection, addDoc, serverTimestamp,
-  getDocs, query, orderBy
-} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 // ── DOM refs ──────────────────────────────────────────────
 const authScreen        = document.getElementById("authScreen");
@@ -77,14 +73,6 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
-// ── Helper: Timeout Promise ───────────────────────────────
-const withTimeout = (promise, ms) => {
-  const timeout = new Promise((_, reject) => 
-    setTimeout(() => reject(new Error("Request timed out. Check your Firebase Project ID.")), ms)
-  );
-  return Promise.race([promise, timeout]);
-};
-
 // ── Patient Modal ─────────────────────────────────────────
 addPatientBtn.onclick = () => {
   patientModal.classList.remove("hidden");
@@ -109,13 +97,13 @@ savePatientBtn.onclick = async () => {
   savePatientBtn.textContent = "Saving…";
 
   try {
-    // Add document to "patients" collection
-    await withTimeout(addDoc(collection(db, "patients"), {
+    const data = await (await supabase.from("patients")).insert({
       name, age, gender,
-      admissionDate: date,
-      createdAt: serverTimestamp(),
-      createdBy: auth.currentUser.uid
-    }), 10000); // 10 second timeout
+      admission_date: date,
+      created_by: auth.currentUser.email
+    });
+
+    if (data.error) throw data.error;
 
     await addLog("Added Patient", name);
     showToast(`✓ ${name} added successfully`, "success");
@@ -128,7 +116,7 @@ savePatientBtn.onclick = async () => {
     await loadPatients();
   } catch (err) {
     console.error("Save patient error:", err);
-    showToast(err.message, "error");
+    showToast("Error saving. Check table columns.", "error");
   } finally {
     savePatientBtn.disabled = false;
     savePatientBtn.textContent = "Save Patient";
@@ -139,12 +127,11 @@ savePatientBtn.onclick = async () => {
 async function loadPatients() {
   patientList.innerHTML = `<div class="loading-state">Loading patients…</div>`;
   try {
-    const q = query(collection(db, "patients"), orderBy("createdAt", "desc"));
-    const snapshot = await getDocs(q);
-
+    const data = await (await supabase.from("patients")).select();
+    
     patientList.innerHTML = "";
 
-    if (snapshot.empty) {
+    if (!data || data.length === 0) {
       patientList.innerHTML = `
         <div class="empty-state">
           <div class="empty-icon">📋</div>
@@ -153,15 +140,13 @@ async function loadPatients() {
       return;
     }
 
-    snapshot.forEach(docSnap => {
-      const p  = docSnap.data();
-      const id = docSnap.id;
-      const card = buildPatientCard(id, p);
+    data.forEach(p => {
+      const card = buildPatientCard(p.id, p);
       patientList.appendChild(card);
     });
   } catch (err) {
     console.error("Load patients error:", err);
-    patientList.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>Error: ${err.message}</p></div>`;
+    patientList.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>Error loading data.</p></div>`;
   }
 }
 
@@ -173,13 +158,13 @@ function buildPatientCard(id, p) {
       <span class="patient-name">${p.name}</span>
       <div class="patient-meta">
         <span class="patient-badge">${p.gender} · ${p.age}y</span>
-        <span class="patient-date">${formatDate(p.admissionDate)}</span>
+        <span class="patient-date">${formatDate(p.admission_date)}</span>
         <span class="chevron" id="chev-${id}">▾</span>
       </div>
     </div>
     <div class="patient-body hidden" id="body-${id}">
       <div class="patient-details">
-        <span>🗓 Admitted: ${formatDate(p.admissionDate)}</span>
+        <span>🗓 Admitted: ${formatDate(p.admission_date)}</span>
       </div>
       <div class="tests-section">
         <div class="tests-label">Lab Tests</div>
@@ -209,33 +194,30 @@ async function loadTests(patientId) {
   container.innerHTML = `<div class="no-tests">Loading…</div>`;
 
   try {
-    const q = query(
-      collection(db, `patients/${patientId}/tests`),
-      orderBy("testDate", "desc")
-    );
-    const snapshot = await getDocs(q);
+    const data = await (await supabase.from("tests")).select("*");
+    // Filter locally for simplicity since we have no backend query logic yet
+    const patientTests = data.filter(t => t.patient_id == patientId);
+    
     container.innerHTML = "";
 
-    if (snapshot.empty) {
+    if (patientTests.length === 0) {
       container.innerHTML = `<div class="no-tests">No tests added yet</div>`;
       return;
     }
 
-    snapshot.forEach(doc => {
-      const t = doc.data();
+    patientTests.forEach(t => {
       const div = document.createElement("div");
       div.className = "test-item";
       div.innerHTML = `
-        <span class="test-name">${t.testName}</span>
+        <span class="test-name">${t.test_name}</span>
         <span class="test-right">
           ${t.amount ? `<span class="test-amount">₹${t.amount}</span>` : ""}
-          <span class="test-date">${formatDate(t.testDate)}</span>
+          <span class="test-date">${formatDate(t.test_date)}</span>
         </span>`;
       container.appendChild(div);
     });
   } catch (err) {
-    console.error("Load tests error:", err);
-    container.innerHTML = `<div class="no-tests">Error: ${err.message}</div>`;
+    container.innerHTML = `<div class="no-tests">Error loading tests</div>`;
   }
 }
 
@@ -265,13 +247,13 @@ saveTestBtn.onclick = async () => {
   saveTestBtn.textContent = "Saving…";
 
   try {
-    await withTimeout(addDoc(collection(db, `patients/${currentPatientId}/tests`), {
-      testName: name,
-      testDate: date,
-      amount,
-      addedBy: auth.currentUser.displayName || auth.currentUser.email,
-      addedAt: serverTimestamp()
-    }), 10000);
+    await (await supabase.from("tests")).insert({
+      patient_id: currentPatientId,
+      test_name: name,
+      test_date: date,
+      amount: amount,
+      added_by: auth.currentUser.email
+    });
 
     await addLog("Added Test", `${name} (₹${amount})`);
     showToast(`✓ Test "${name}" saved`, "success");
@@ -283,7 +265,7 @@ saveTestBtn.onclick = async () => {
 
     await loadTests(currentPatientId);
   } catch (err) {
-    showToast(err.message, "error");
+    showToast("Error saving test", "error");
   } finally {
     saveTestBtn.disabled = false;
     saveTestBtn.textContent = "Save Test";
@@ -293,27 +275,24 @@ saveTestBtn.onclick = async () => {
 // ── Logs ──────────────────────────────────────────────────
 async function addLog(action, item) {
   try {
-    await addDoc(collection(db, "logs"), {
+    await (await supabase.from("logs")).insert({
       action, item,
-      by: auth.currentUser?.displayName || "Unknown",
-      time: serverTimestamp()
+      by: auth.currentUser?.displayName || "Unknown"
     });
   } catch (e) {
-    console.warn("Log write failed:", e.message);
+    console.warn("Log write failed");
   }
 }
 
 async function loadLogs() {
   try {
-    const q = query(collection(db, "logs"), orderBy("time", "desc"));
-    const snapshot = await getDocs(q);
+    const data = await (await supabase.from("logs")).select();
     logsView.innerHTML = "";
-    if (snapshot.empty) {
+    if (!data || data.length === 0) {
       logsView.innerHTML = `<div class="empty-state"><div class="empty-icon">📝</div><p>No activity yet.</p></div>`;
       return;
     }
-    snapshot.forEach(doc => {
-      const l = doc.data();
+    data.forEach(l => {
       const div = document.createElement("div");
       div.className = "log-item";
       div.innerHTML = `
