@@ -4,11 +4,12 @@ import { login, logout } from "./auth.js";
 import { onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-// Firestore Lite — no onSnapshot, use getDocs for reads
+// Full Firestore SDK — must match firebase.js (not Lite)
 import {
   collection, addDoc, serverTimestamp,
   getDocs, query, orderBy
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-lite.js";
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
 
 // ── DOM refs ──────────────────────────────────────────────
 const authScreen        = document.getElementById("authScreen");

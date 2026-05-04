@@ -1,8 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-// Firestore LITE — no WebSocket, no IndexedDB, direct HTTP writes to server
-// This is the reliable choice for static GitHub Pages hosting
-import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-lite.js";
+import { initializeFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDHgwCyZQmnsl98xTwinVXAWKprcPax0vI",
@@ -15,4 +13,11 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+// Full Firestore SDK (not Lite) — avoids the 404 "database not found" issue
+// experimentalForceLongPolling: true — uses HTTP long-polling instead of WebSocket,
+// which prevents the Cross-Origin-Opener-Policy (COOP) hang on GitHub Pages
+export const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+  experimentalAutoDetectLongPolling: false
+});
