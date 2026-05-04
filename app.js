@@ -115,15 +115,18 @@ async function enterApp() {
   appEl.classList.remove("hidden");
   userInfo.textContent = user.displayName || user.email.split("@")[0];
   
-  // Update UI Badge
+  // Temporarily enable admin/delete permissions for everyone with the key
+  isAdmin = true; 
+  
   if (useSampleMode) {
     modeBadge.textContent = "Sample App";
     modeBadge.className = "mode-badge sample";
-    isAdmin = true; // Allow full access in Sample Mode for testing
   } else {
     modeBadge.textContent = "Lab Database";
     modeBadge.className = "mode-badge lab";
+    // We keep the check in case we want to differentiate later, but isAdmin is already true
     await checkAdminStatus(user.email);
+    isAdmin = true; // Force true again just in case checkAdminStatus set it to false
   }
   
   loadPatients();

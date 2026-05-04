@@ -33,6 +33,14 @@ export const supabase = {
           headers
         });
         return res.ok;
+      },
+      async update(id, data) {
+        const res = await fetch(`${baseUrl}?id=eq.${id}`, {
+          method: "PATCH",
+          headers: { ...headers, "Prefer": "return=minimal" },
+          body: JSON.stringify(data)
+        });
+        return res.ok;
       }
     };
   }
