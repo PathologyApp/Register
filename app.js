@@ -97,16 +97,15 @@ savePatientBtn.onclick = async () => {
   savePatientBtn.textContent = "Saving…";
 
   try {
-    const data = await (await supabase.from("patients")).insert({
+    const table = await supabase.from("patients");
+    const result = await table.insert({
       name, age, gender,
       admission_date: date,
       created_by: auth.currentUser.email
     });
 
-    if (data.error) throw data.error;
-
     await addLog("Added Patient", name);
-    showToast(`✓ ${name} added successfully`, "success");
+    showToast(`✓ ${name} added`, "success");
 
     document.getElementById("pName").value = "";
     document.getElementById("pAge").value = "";
@@ -115,8 +114,7 @@ savePatientBtn.onclick = async () => {
 
     await loadPatients();
   } catch (err) {
-    console.error("Save patient error:", err);
-    showToast("Error saving. Check table columns.", "error");
+    showToast("Error saving patient", "error");
   } finally {
     savePatientBtn.disabled = false;
     savePatientBtn.textContent = "Save Patient";
@@ -128,6 +126,7 @@ async function loadPatients() {
   patientList.innerHTML = `<div class="loading-state">Loading patients…</div>`;
   try {
     const data = await (await supabase.from("patients")).select();
+    const tests = await (await supabase.from("tests")).select();
     
     patientList.innerHTML = "";
 
@@ -141,21 +140,27 @@ async function loadPatients() {
     }
 
     data.forEach(p => {
-      const card = buildPatientCard(p.id, p);
+      // Calculate total for this patient
+      const pTests = tests.filter(t => t.patient_id == p.id);
+      const total = pTests.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+      
+      const card = buildPatientCard(p.id, p, total);
       patientList.appendChild(card);
     });
   } catch (err) {
-    console.error("Load patients error:", err);
-    patientList.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>Error loading data.</p></div>`;
+    patientList.innerHTML = `<div class="empty-state">Error loading data.</div>`;
   }
 }
 
-function buildPatientCard(id, p) {
+function buildPatientCard(id, p, total) {
   const card = document.createElement("div");
   card.className = "patient-card";
   card.innerHTML = `
     <div class="patient-header" id="hdr-${id}">
-      <span class="patient-name">${p.name}</span>
+      <div class="patient-title-row">
+        <span class="patient-name">${p.name}</span>
+        ${total > 0 ? `<span class="patient-total">₹${total}</span>` : ""}
+      </div>
       <div class="patient-meta">
         <span class="patient-badge">${p.gender} · ${p.age}y</span>
         <span class="patient-date">${formatDate(p.admission_date)}</span>
@@ -163,25 +168,23 @@ function buildPatientCard(id, p) {
       </div>
     </div>
     <div class="patient-body hidden" id="body-${id}">
-      <div class="patient-details">
-        <span>🗓 Admitted: ${formatDate(p.admission_date)}</span>
-      </div>
       <div class="tests-section">
-        <div class="tests-label">Lab Tests</div>
-        <div id="tests-${id}"><div class="no-tests">Click to load tests</div></div>
-        <button class="add-test-btn" data-id="${id}">+ Add Test</button>
+        <div id="tests-${id}"><div class="no-tests">Loading…</div></div>
+        <div class="card-actions">
+           <button class="add-test-btn" data-id="${id}">+ Add Test</button>
+           <button class="delete-patient-btn" data-id="${id}" data-name="${p.name}">🗑 Delete</button>
+        </div>
       </div>
     </div>`;
 
-  card.querySelector(`#hdr-${id}`).onclick = async () => {
+  card.querySelector(`#hdr-${id}`).onclick = async (e) => {
+    if (e.target.closest('.card-actions')) return;
     const body = document.getElementById(`body-${id}`);
     const chev = document.getElementById(`chev-${id}`);
     const isOpen = !body.classList.contains("hidden");
     body.classList.toggle("hidden");
     chev.classList.toggle("open", !isOpen);
-    if (!isOpen) {
-      await loadTests(id);
-    }
+    if (!isOpen) await loadTests(id);
   };
 
   return card;
@@ -194,10 +197,8 @@ async function loadTests(patientId) {
   container.innerHTML = `<div class="no-tests">Loading…</div>`;
 
   try {
-    const data = await (await supabase.from("tests")).select("*");
-    // Filter locally for simplicity since we have no backend query logic yet
+    const data = await (await supabase.from("tests")).select();
     const patientTests = data.filter(t => t.patient_id == patientId);
-    
     container.innerHTML = "";
 
     if (patientTests.length === 0) {
@@ -221,6 +222,31 @@ async function loadTests(patientId) {
   }
 }
 
+// ── Delete Patient ────────────────────────────────────────
+document.addEventListener("click", async (e) => {
+  if (e.target.classList.contains("delete-patient-btn")) {
+    const id = e.target.dataset.id;
+    const name = e.target.dataset.name;
+    if (confirm(`Are you sure you want to delete ${name}?`)) {
+      try {
+        // Since we are using fetch-based helper, we just delete by ID
+        const baseUrl = `https://cgdnrdlrwxozkmjjlnog.supabase.co/rest/v1/patients?id=eq.${id}`;
+        await fetch(baseUrl, {
+          method: "DELETE",
+          headers: {
+            "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnZG5yZGxyd3hvemttampsbm9nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4MjcxMzQsImV4cCI6MjA5MzQwMzEzNH0.PuXwx8ZShX7_seIs3c9-TJhXKCOyNUgb7RMxCOkynCU",
+            "Authorization": `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnZG5yZGxyd3hvemttampsbm9nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4MjcxMzQsImV4cCI6MjA5MzQwMzEzNH0.PuXwx8ZShX7_seIs3c9-TJhXKCOyNUgb7RMxCOkynCU`
+          }
+        });
+        showToast("Patient deleted", "info");
+        loadPatients();
+      } catch (err) {
+        showToast("Error deleting", "error");
+      }
+    }
+  }
+});
+
 // ── Test Modal ────────────────────────────────────────────
 document.addEventListener("click", (e) => {
   if (e.target.classList.contains("add-test-btn")) {
@@ -235,17 +261,13 @@ testModal.onclick = (e) => { if (e.target === testModal) testModal.classList.add
 
 // ── Save Test ─────────────────────────────────────────────
 saveTestBtn.onclick = async () => {
-  if (!auth.currentUser) { showToast("Login required", "error"); return; }
-
+  if (!auth.currentUser) return;
   const name   = document.getElementById("tName").value.trim();
   const date   = document.getElementById("tDate").value;
   const amount = parseFloat(document.getElementById("tAmount").value) || 0;
-
-  if (!name) { showToast("Enter test name", "error"); return; }
-
+  if (!name) return;
   saveTestBtn.disabled = true;
   saveTestBtn.textContent = "Saving…";
-
   try {
     await (await supabase.from("tests")).insert({
       patient_id: currentPatientId,
@@ -254,18 +276,14 @@ saveTestBtn.onclick = async () => {
       amount: amount,
       added_by: auth.currentUser.email
     });
-
-    await addLog("Added Test", `${name} (₹${amount})`);
-    showToast(`✓ Test "${name}" saved`, "success");
-
+    showToast("Test saved", "success");
     document.getElementById("tName").value = "";
-    document.getElementById("tDate").value = "";
     document.getElementById("tAmount").value = "";
     testModal.classList.add("hidden");
-
+    await loadPatients(); // Reload for total
     await loadTests(currentPatientId);
   } catch (err) {
-    showToast("Error saving test", "error");
+    showToast("Error", "error");
   } finally {
     saveTestBtn.disabled = false;
     saveTestBtn.textContent = "Save Test";
@@ -277,11 +295,9 @@ async function addLog(action, item) {
   try {
     await (await supabase.from("logs")).insert({
       action, item,
-      by: auth.currentUser?.displayName || "Unknown"
+      by: auth.currentUser?.displayName || "User"
     });
-  } catch (e) {
-    console.warn("Log write failed");
-  }
+  } catch (e) {}
 }
 
 async function loadLogs() {
@@ -289,7 +305,7 @@ async function loadLogs() {
     const data = await (await supabase.from("logs")).select();
     logsView.innerHTML = "";
     if (!data || data.length === 0) {
-      logsView.innerHTML = `<div class="empty-state"><div class="empty-icon">📝</div><p>No activity yet.</p></div>`;
+      logsView.innerHTML = `<div class="empty-state">No activity yet.</div>`;
       return;
     }
     data.forEach(l => {
@@ -304,9 +320,7 @@ async function loadLogs() {
         </div>`;
       logsView.appendChild(div);
     });
-  } catch (err) {
-    console.error("Load logs error:", err);
-  }
+  } catch (err) {}
 }
 
 // ── Tabs ──────────────────────────────────────────────────
@@ -327,9 +341,7 @@ logsTab.onclick = async () => {
 // ── Helpers ───────────────────────────────────────────────
 function setTodayIfEmpty(inputId) {
   const el = document.getElementById(inputId);
-  if (el && !el.value) {
-    el.value = new Date().toISOString().split("T")[0];
-  }
+  if (el && !el.value) el.value = new Date().toISOString().split("T")[0];
 }
 
 function formatDate(dateStr) {
