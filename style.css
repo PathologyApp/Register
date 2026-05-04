@@ -105,6 +105,62 @@ body {
   min-height: 18px;
 }
 
+/* ── Key Entry ────────────────────────────────────────── */
+#keyScreen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #4f6ef7 0%, #7c3aed 100%);
+  padding: 20px;
+}
+
+.key-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 700;
+  margin: 8px 0;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--border);
+}
+
+.divider span {
+  padding: 0 10px;
+}
+
+.btn-secondary {
+  width: 100%;
+  padding: 12px;
+  background: var(--surface2);
+  color: var(--text-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Inter', sans-serif;
+}
+
+.btn-secondary:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
 /* ── App Shell ────────────────────────────────────────── */
 #app { display: flex; flex-direction: column; min-height: 100vh; }
 
@@ -131,7 +187,25 @@ header {
   font-size: 17px;
   font-weight: 700;
   letter-spacing: -0.3px;
+  line-height: 1.1;
 }
+.brand-info {
+  display: flex;
+  flex-direction: column;
+}
+.mode-badge {
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: rgba(255,255,255,0.2);
+  padding: 1px 6px;
+  border-radius: 4px;
+  width: fit-content;
+  margin-top: 2px;
+}
+.mode-badge.lab { background: #ffd700; color: #000; }
+.mode-badge.sample { background: #e2e8f0; color: #475569; }
 
 .header-user {
   display: flex;

@@ -1,17 +1,29 @@
-import { auth } from "./firebase.js";
+import { auth } from "./auth.js";
 import { login, logout } from "./auth.js";
 import { supabase } from "./supabase.js";
 
 import { onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
+// ── State & Config ────────────────────────────────────────
+const LAB_KEY = "LAB2024"; // The "Lab Register Key"
+let isLabUser = localStorage.getItem("lab_unlocked") === "true";
+let useSampleMode = localStorage.getItem("sample_mode") === "true";
+let isAdmin = false;
+
 // ── DOM refs ──────────────────────────────────────────────
 const authScreen        = document.getElementById("authScreen");
+const keyScreen         = document.getElementById("keyScreen");
 const appEl             = document.getElementById("app");
 const loginBtn          = document.getElementById("loginBtn");
 const logoutBtn         = document.getElementById("logoutBtn");
 const userInfo          = document.getElementById("userInfo");
 const authError         = document.getElementById("authError");
+const keyError          = document.getElementById("keyError");
+const labKeyInput       = document.getElementById("labKeyInput");
+const verifyKeyBtn      = document.getElementById("verifyKeyBtn");
+const sampleAppBtn      = document.getElementById("sampleAppBtn");
+const modeBadge         = document.getElementById("modeBadge");
 
 const addPatientBtn     = document.getElementById("addPatientBtn");
 const patientModal      = document.getElementById("patientModal");
@@ -30,48 +42,102 @@ const toastEl           = document.getElementById("toast");
 
 let currentPatientId = null;
 
+// ── Helpers ───────────────────────────────────────────────
+function getTable(base) {
+  // If in sample mode, use sample_ prefix
+  return useSampleMode ? `sample_${base}` : base;
+}
+
+// ── Auth & Mode Flow ──────────────────────────────────────
+const GOOGLE_ICON = `<svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 2.9l5.7-5.7C34.1 6.7 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 15.8 18.9 12 24 12c3.1 0 5.8 1.1 8 2.9l5.7-5.7C34.1 6.7 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-1.9 13.5-5.1l-6.2-5.2C29.3 35.5 26.7 36 24 36c-5.1 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.5 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.3 5.6l6.2 5.2C37.2 38.3 44 33 44 24c0-1.3-.1-2.6-.4-3.9z"/></svg>`;
+
+loginBtn.onclick = async () => {
+  loginBtn.disabled = true;
+  try { await login(); } catch (err) { loginBtn.disabled = false; }
+};
+
+logoutBtn.onclick = async () => {
+  localStorage.removeItem("lab_unlocked");
+  localStorage.removeItem("sample_mode");
+  await logout();
+  location.reload(); // Refresh to reset state
+};
+
+verifyKeyBtn.onclick = () => {
+  const key = labKeyInput.value.trim();
+  if (key === LAB_KEY) {
+    isLabUser = true;
+    useSampleMode = false;
+    localStorage.setItem("lab_unlocked", "true");
+    localStorage.setItem("sample_mode", "false");
+    enterApp();
+  } else {
+    keyError.textContent = "Incorrect Lab Key. Please try again.";
+  }
+};
+
+sampleAppBtn.onclick = () => {
+  isLabUser = false;
+  useSampleMode = true;
+  localStorage.setItem("lab_unlocked", "false");
+  localStorage.setItem("sample_mode", "true");
+  enterApp();
+};
+
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    authScreen.classList.add("hidden");
+    if (!isLabUser && !useSampleMode) {
+      keyScreen.classList.remove("hidden");
+      appEl.classList.add("hidden");
+    } else {
+      enterApp();
+    }
+  } else {
+    authScreen.classList.remove("hidden");
+    keyScreen.classList.add("hidden");
+    appEl.classList.add("hidden");
+    loginBtn.disabled = false;
+    loginBtn.innerHTML = `${GOOGLE_ICON} Sign in with Google`;
+  }
+});
+
+async function enterApp() {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  keyScreen.classList.add("hidden");
+  appEl.classList.remove("hidden");
+  userInfo.textContent = user.displayName || user.email.split("@")[0];
+  
+  // Update UI Badge
+  if (useSampleMode) {
+    modeBadge.textContent = "Sample App";
+    modeBadge.className = "mode-badge sample";
+    isAdmin = true; // Allow full access in Sample Mode for testing
+  } else {
+    modeBadge.textContent = "Lab Database";
+    modeBadge.className = "mode-badge lab";
+    await checkAdminStatus(user.email);
+  }
+  
+  loadPatients();
+}
+
+async function checkAdminStatus(email) {
+  try {
+    const data = await (await supabase.from("admins")).select();
+    isAdmin = data.some(a => a.email.toLowerCase() === email.toLowerCase());
+    if (isAdmin) console.log("Welcome, Supervisor!");
+  } catch (e) { isAdmin = false; }
+}
+
 // ── Toast ─────────────────────────────────────────────────
 function showToast(msg, type = "info") {
   toastEl.textContent = msg;
   toastEl.className = `toast ${type} show`;
   setTimeout(() => { toastEl.className = "toast"; }, 3200);
 }
-
-// ── Auth ──────────────────────────────────────────────────
-const GOOGLE_ICON = `<svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 2.9l5.7-5.7C34.1 6.7 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 15.8 18.9 12 24 12c3.1 0 5.8 1.1 8 2.9l5.7-5.7C34.1 6.7 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-1.9 13.5-5.1l-6.2-5.2C29.3 35.5 26.7 36 24 36c-5.1 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.5 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.3 5.6l6.2 5.2C37.2 38.3 44 33 44 24c0-1.3-.1-2.6-.4-3.9z"/></svg>`;
-
-loginBtn.onclick = async () => {
-  loginBtn.disabled = true;
-  loginBtn.textContent = "Signing in…";
-  authError.textContent = "";
-  try {
-    await login();
-  } catch (err) {
-    authError.textContent = "Login failed: " + err.message;
-    loginBtn.disabled = false;
-    loginBtn.innerHTML = `${GOOGLE_ICON} Sign in with Google`;
-  }
-};
-
-logoutBtn.onclick = async () => {
-  await logout();
-  patientList.innerHTML = "";
-  logsView.innerHTML = "";
-};
-
-onAuthStateChanged(auth, (user) => {
-  if (user) {
-    authScreen.classList.add("hidden");
-    appEl.classList.remove("hidden");
-    userInfo.textContent = user.displayName || user.email.split("@")[0];
-    loadPatients();
-  } else {
-    authScreen.classList.remove("hidden");
-    appEl.classList.add("hidden");
-    loginBtn.disabled = false;
-    loginBtn.innerHTML = `${GOOGLE_ICON} Sign in with Google`;
-  }
-});
 
 // ── Patient Modal ─────────────────────────────────────────
 addPatientBtn.onclick = () => {
@@ -80,48 +146,41 @@ addPatientBtn.onclick = () => {
   document.getElementById("pName").focus();
 };
 closePatientModal.onclick = () => patientModal.classList.add("hidden");
-patientModal.onclick = (e) => { if (e.target === patientModal) patientModal.classList.add("hidden"); };
 
 // ── Save Patient ──────────────────────────────────────────
 savePatientBtn.onclick = async () => {
-  if (!auth.currentUser) { showToast("Please login first", "error"); return; }
-  const name   = document.getElementById("pName").value.trim();
-  const age    = document.getElementById("pAge").value.trim();
+  if (!auth.currentUser) return;
+  const name = document.getElementById("pName").value.trim();
+  const age = document.getElementById("pAge").value.trim();
   const gender = document.getElementById("pGender").value;
-  const date   = document.getElementById("pDate").value;
-  if (!name) { showToast("Enter patient name", "error"); return; }
+  const date = document.getElementById("pDate").value;
+  if (!name) return;
   savePatientBtn.disabled = true;
   savePatientBtn.textContent = "Saving…";
   try {
-    await (await supabase.from("patients")).insert({
+    await (await supabase.from(getTable("patients"))).insert({
       name, age, gender,
       admission_date: date,
       created_by: auth.currentUser.email
     });
     await addLog("Added Patient", name);
     showToast(`✓ ${name} added`, "success");
-    document.getElementById("pName").value = "";
-    document.getElementById("pAge").value = "";
-    document.getElementById("pDate").value = "";
     patientModal.classList.add("hidden");
+    document.getElementById("pName").value = "";
     await loadPatients();
-  } catch (err) {
-    showToast("Error saving patient", "error");
-  } finally {
-    savePatientBtn.disabled = false;
-    savePatientBtn.textContent = "Save Patient";
-  }
+  } catch (err) { showToast("Error saving", "error"); }
+  finally { savePatientBtn.disabled = false; savePatientBtn.textContent = "Save Patient"; }
 };
 
 // ── Load Patients ─────────────────────────────────────────
 async function loadPatients() {
   patientList.innerHTML = `<div class="loading-state">Loading patients…</div>`;
   try {
-    const data = await (await supabase.from("patients")).select();
-    const tests = await (await supabase.from("tests")).select();
+    const data = await (await supabase.from(getTable("patients"))).select();
+    const tests = await (await supabase.from(getTable("tests"))).select();
     patientList.innerHTML = "";
     if (!data || data.length === 0) {
-      patientList.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><p>No patients yet.</p></div>`;
+      patientList.innerHTML = `<div class="empty-state">No patients yet.</div>`;
       return;
     }
     data.forEach(p => {
@@ -155,7 +214,7 @@ function buildPatientCard(id, p, total) {
         <div id="tests-${id}"><div class="no-tests">Loading…</div></div>
         <div class="card-actions">
            <button class="add-test-btn" data-id="${id}">+ Add Test</button>
-           <button class="delete-patient-btn" data-id="${id}" data-name="${p.name}">🗑 Delete Patient</button>
+           ${isAdmin ? `<button class="delete-patient-btn" data-id="${id}" data-name="${p.name}">🗑 Delete Patient</button>` : ""}
         </div>
       </div>
     </div>`;
@@ -178,7 +237,7 @@ async function loadTests(patientId) {
   if (!container) return;
   container.innerHTML = `<div class="no-tests">Loading…</div>`;
   try {
-    const data = await (await supabase.from("tests")).select();
+    const data = await (await supabase.from(getTable("tests"))).select();
     const pTests = data.filter(t => t.patient_id == patientId);
     container.innerHTML = "";
     if (pTests.length === 0) {
@@ -193,40 +252,34 @@ async function loadTests(patientId) {
         <div class="test-right">
           ${t.amount ? `<span class="test-amount">₹${t.amount}</span>` : ""}
           <span class="test-date">${formatDate(t.test_date)}</span>
-          <button class="delete-test-btn" data-id="${t.id}" data-name="${t.test_name}" data-pid="${patientId}">✕</button>
+          ${isAdmin ? `<button class="delete-test-btn" data-id="${t.id}" data-name="${t.test_name}" data-pid="${patientId}">✕</button>` : ""}
         </div>`;
       container.appendChild(div);
     });
-  } catch (err) {
-    container.innerHTML = `<div class="no-tests">Error loading tests</div>`;
-  }
+  } catch (err) { container.innerHTML = `<div class="no-tests">Error</div>`; }
 }
 
-// ── Global Clicks (Deletes) ────────────────────────────────
+// ── Deletes (Restricted to Admin) ─────────────────────────
 document.addEventListener("click", async (e) => {
-  // Delete Patient
+  if (!isAdmin) return; // Fail-safe check
+  
   if (e.target.classList.contains("delete-patient-btn")) {
     const { id, name } = e.target.dataset;
-    if (confirm(`Delete ${name} and all their records?`)) {
-      try {
-        await (await supabase.from("patients")).delete(id);
-        await addLog("Deleted Patient", name);
-        showToast("Patient removed", "info");
-        loadPatients();
-      } catch (err) { showToast("Delete failed", "error"); }
+    if (confirm(`Delete ${name}?`)) {
+      await (await supabase.from(getTable("patients"))).delete(id);
+      await addLog("Deleted Patient", name);
+      showToast("Removed", "info");
+      loadPatients();
     }
   }
-  // Delete Test
   if (e.target.classList.contains("delete-test-btn")) {
     const { id, name, pid } = e.target.dataset;
     if (confirm(`Delete test "${name}"?`)) {
-      try {
-        await (await supabase.from("tests")).delete(id);
-        await addLog("Deleted Test", name);
-        showToast("Test removed", "info");
-        await loadPatients(); // Refresh total
-        await loadTests(pid); // Refresh test list
-      } catch (err) { showToast("Delete failed", "error"); }
+      await (await supabase.from(getTable("tests"))).delete(id);
+      await addLog("Deleted Test", name);
+      showToast("Removed", "info");
+      await loadPatients();
+      await loadTests(pid);
     }
   }
 });
@@ -241,40 +294,39 @@ document.addEventListener("click", (e) => {
   }
 });
 closeTestModal.onclick = () => testModal.classList.add("hidden");
-testModal.onclick = (e) => { if (e.target === testModal) testModal.classList.add("hidden"); };
 
 // ── Save Test ─────────────────────────────────────────────
 saveTestBtn.onclick = async () => {
   if (!auth.currentUser) return;
-  const name   = document.getElementById("tName").value.trim();
-  const date   = document.getElementById("tDate").value;
+  const name = document.getElementById("tName").value.trim();
+  const date = document.getElementById("tDate").value;
   const amount = parseFloat(document.getElementById("tAmount").value) || 0;
   if (!name) return;
   saveTestBtn.disabled = true;
   saveTestBtn.textContent = "Saving…";
   try {
-    await (await supabase.from("tests")).insert({
+    await (await supabase.from(getTable("tests"))).insert({
       patient_id: currentPatientId,
       test_name: name,
       test_date: date,
       amount: amount,
       added_by: auth.currentUser.email
     });
-    await addLog("Added Test", `${name} (₹${amount})`);
+    await addLog("Added Test", name);
     showToast(`✓ Test saved`, "success");
+    testModal.classList.add("hidden");
     document.getElementById("tName").value = "";
     document.getElementById("tAmount").value = "";
-    testModal.classList.add("hidden");
     await loadPatients();
     await loadTests(currentPatientId);
   } catch (err) { showToast("Error", "error"); }
   finally { saveTestBtn.disabled = false; saveTestBtn.textContent = "Save Test"; }
 };
 
-// ── Logs ──────────────────────────────────────────────────
+// ── Logs & Helpers ────────────────────────────────────────
 async function addLog(action, item) {
   try {
-    await (await supabase.from("logs")).insert({
+    await (await supabase.from(getTable("logs"))).insert({
       action, item,
       by: auth.currentUser?.displayName || "User"
     });
@@ -283,28 +335,17 @@ async function addLog(action, item) {
 
 async function loadLogs() {
   try {
-    const data = await (await supabase.from("logs")).select();
+    const data = await (await supabase.from(getTable("logs"))).select();
     logsView.innerHTML = "";
-    if (!data || data.length === 0) {
-      logsView.innerHTML = `<div class="empty-state">No activity yet.</div>`;
-      return;
-    }
     data.forEach(l => {
       const div = document.createElement("div");
       div.className = "log-item";
-      div.innerHTML = `
-        <div class="log-dot"></div>
-        <div>
-          <div class="log-action">${l.action}</div>
-          <div class="log-item-name">${l.item}</div>
-          <div class="log-by">by ${l.by}</div>
-        </div>`;
+      div.innerHTML = `<div class="log-dot"></div><div><div class="log-action">${l.action}</div><div class="log-item-name">${l.item}</div><div class="log-by">by ${l.by}</div></div>`;
       logsView.appendChild(div);
     });
   } catch (err) {}
 }
 
-// ── Tabs ──────────────────────────────────────────────────
 patientsTab.onclick = () => {
   patientList.classList.remove("hidden");
   logsView.classList.add("hidden");
@@ -319,7 +360,6 @@ logsTab.onclick = async () => {
   await loadLogs();
 };
 
-// ── Helpers ───────────────────────────────────────────────
 function setTodayIfEmpty(inputId) {
   const el = document.getElementById(inputId);
   if (el && !el.value) el.value = new Date().toISOString().split("T")[0];

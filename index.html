@@ -24,12 +24,35 @@
     </div>
   </div>
 
+  <!-- Key Entry Screen (Shown after Google Login if key not set) -->
+  <div id="keyScreen" class="hidden">
+    <div class="auth-card">
+      <div class="auth-icon">🔑</div>
+      <h1>Lab Access</h1>
+      <p class="auth-sub">Enter the Pathology Lab Key to access official records, or continue with the Sample App.</p>
+      
+      <div class="form-group">
+        <input id="labKeyInput" type="password" placeholder="Enter Lab Key" autocomplete="off"/>
+      </div>
+      
+      <div class="key-actions">
+        <button id="verifyKeyBtn" class="btn-primary">Unlock Lab Access</button>
+        <div class="divider"><span>OR</span></div>
+        <button id="sampleAppBtn" class="btn-secondary">Use Sample App</button>
+      </div>
+      <p id="keyError" class="auth-error"></p>
+    </div>
+  </div>
+
   <!-- Main App -->
   <div id="app" class="hidden">
     <header>
       <div class="header-brand">
         <span class="brand-icon">🧪</span>
-        <span class="brand-name">Pathology Register</span>
+        <div class="brand-info">
+          <span class="brand-name">Pathology Register</span>
+          <span id="modeBadge" class="mode-badge"></span>
+        </div>
       </div>
       <div class="header-user">
         <span id="userInfo"></span>
