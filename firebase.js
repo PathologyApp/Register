@@ -1,6 +1,6 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { initializeFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+import { initializeFirestore } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDHgwCyZQmnsl98xTwinVXAWKprcPax0vI",
@@ -14,10 +14,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
-// Full Firestore SDK (not Lite) — avoids the 404 "database not found" issue
-// experimentalForceLongPolling: true — uses HTTP long-polling instead of WebSocket,
-// which prevents the Cross-Origin-Opener-Policy (COOP) hang on GitHub Pages
+// Use version 9 settings which were stable for your other app
+// experimentalForceLongPolling: true fixes the "Saving..." hang on GitHub Pages
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
-  experimentalAutoDetectLongPolling: false
+  useFetchStreams: false
 });

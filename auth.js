@@ -1,40 +1,30 @@
-// auth.js
 import { auth } from "./firebase.js";
-import {
-  GoogleAuthProvider,
-  signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
-  signOut
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  signInWithRedirect, 
+  signOut,
+  getRedirectResult
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
 const provider = new GoogleAuthProvider();
 
-const isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i
-  .test(navigator.userAgent);
-
-// Handle redirect result on page load (mobile flow)
-getRedirectResult(auth).catch(err => {
-  if (err && err.code !== "auth/null-user") {
-    console.error("Redirect result error:", err.message);
-  }
-});
-
-export async function login() {
-  if (isMobile) {
-    return signInWithRedirect(auth, provider);
-  }
+export const login = async () => {
   try {
-    const result = await signInWithPopup(auth, provider);
-    return result.user;
-  } catch (err) {
-    if (err.code === "auth/popup-blocked" || err.code === "auth/popup-closed-by-user") {
-      return signInWithRedirect(auth, provider);
+    // Try popup first (desktop)
+    return await signInWithPopup(auth, provider);
+  } catch (error) {
+    // Fallback to redirect (mobile or COOP issues)
+    if (error.code === 'auth/popup-blocked' || error.code === 'auth/cross-origin-isolated-binary-not-supported' || error.code === 'auth/internal-error') {
+      return await signInWithRedirect(auth, provider);
     }
-    throw err;
+    throw error;
   }
-}
+};
 
-export async function logout() {
-  return signOut(auth);
-}
+export const logout = () => signOut(auth);
+
+// Handle redirect result on page load
+getRedirectResult(auth).catch((error) => {
+  console.error("Redirect login error:", error);
+});

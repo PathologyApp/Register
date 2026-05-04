@@ -2,14 +2,12 @@ import { auth, db } from "./firebase.js";
 import { login, logout } from "./auth.js";
 
 import { onAuthStateChanged }
-  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
-// Full Firestore SDK — must match firebase.js (not Lite)
 import {
   collection, addDoc, serverTimestamp,
   getDocs, query, orderBy
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 // ── DOM refs ──────────────────────────────────────────────
 const authScreen        = document.getElementById("authScreen");
@@ -52,7 +50,6 @@ loginBtn.onclick = async () => {
   authError.textContent = "";
   try {
     await login();
-    // For redirect flow: page reloads; for popup: onAuthStateChanged fires
   } catch (err) {
     authError.textContent = "Login failed: " + err.message;
     loginBtn.disabled = false;
@@ -72,7 +69,6 @@ onAuthStateChanged(auth, (user) => {
     appEl.classList.remove("hidden");
     userInfo.textContent = user.displayName || user.email.split("@")[0];
     loadPatients();
-    loadLogs();
   } else {
     authScreen.classList.remove("hidden");
     appEl.classList.add("hidden");
@@ -80,6 +76,14 @@ onAuthStateChanged(auth, (user) => {
     loginBtn.innerHTML = `${GOOGLE_ICON} Sign in with Google`;
   }
 });
+
+// ── Helper: Timeout Promise ───────────────────────────────
+const withTimeout = (promise, ms) => {
+  const timeout = new Promise((_, reject) => 
+    setTimeout(() => reject(new Error("Request timed out. Check your Firebase Project ID.")), ms)
+  );
+  return Promise.race([promise, timeout]);
+};
 
 // ── Patient Modal ─────────────────────────────────────────
 addPatientBtn.onclick = () => {
@@ -100,19 +104,18 @@ savePatientBtn.onclick = async () => {
   const date   = document.getElementById("pDate").value;
 
   if (!name) { showToast("Enter patient name", "error"); return; }
-  if (!age)  { showToast("Enter age", "error"); return; }
-  if (!date) { showToast("Select admission date", "error"); return; }
 
   savePatientBtn.disabled = true;
   savePatientBtn.textContent = "Saving…";
 
   try {
-    await addDoc(collection(db, "patients"), {
+    // Add document to "patients" collection
+    await withTimeout(addDoc(collection(db, "patients"), {
       name, age, gender,
       admissionDate: date,
       createdAt: serverTimestamp(),
       createdBy: auth.currentUser.uid
-    });
+    }), 10000); // 10 second timeout
 
     await addLog("Added Patient", name);
     showToast(`✓ ${name} added successfully`, "success");
@@ -122,22 +125,21 @@ savePatientBtn.onclick = async () => {
     document.getElementById("pDate").value = "";
     patientModal.classList.add("hidden");
 
-    // Refresh the patient list
     await loadPatients();
   } catch (err) {
     console.error("Save patient error:", err);
-    showToast("Error: " + err.message, "error");
+    showToast(err.message, "error");
   } finally {
     savePatientBtn.disabled = false;
     savePatientBtn.textContent = "Save Patient";
   }
 };
 
-// ── Load Patients (getDocs — Firestore Lite) ──────────────
+// ── Load Patients ─────────────────────────────────────────
 async function loadPatients() {
   patientList.innerHTML = `<div class="loading-state">Loading patients…</div>`;
   try {
-    const q = query(collection(db, "patients"), orderBy("admissionDate", "desc"));
+    const q = query(collection(db, "patients"), orderBy("createdAt", "desc"));
     const snapshot = await getDocs(q);
 
     patientList.innerHTML = "";
@@ -200,7 +202,7 @@ function buildPatientCard(id, p) {
   return card;
 }
 
-// ── Load Tests (getDocs — Firestore Lite) ─────────────────
+// ── Load Tests ────────────────────────────────────────────
 async function loadTests(patientId) {
   const container = document.getElementById(`tests-${patientId}`);
   if (!container) return;
@@ -258,19 +260,18 @@ saveTestBtn.onclick = async () => {
   const amount = parseFloat(document.getElementById("tAmount").value) || 0;
 
   if (!name) { showToast("Enter test name", "error"); return; }
-  if (!date) { showToast("Select a test date", "error"); return; }
 
   saveTestBtn.disabled = true;
   saveTestBtn.textContent = "Saving…";
 
   try {
-    await addDoc(collection(db, `patients/${currentPatientId}/tests`), {
+    await withTimeout(addDoc(collection(db, `patients/${currentPatientId}/tests`), {
       testName: name,
       testDate: date,
       amount,
       addedBy: auth.currentUser.displayName || auth.currentUser.email,
       addedAt: serverTimestamp()
-    });
+    }), 10000);
 
     await addLog("Added Test", `${name} (₹${amount})`);
     showToast(`✓ Test "${name}" saved`, "success");
@@ -280,11 +281,9 @@ saveTestBtn.onclick = async () => {
     document.getElementById("tAmount").value = "";
     testModal.classList.add("hidden");
 
-    // Refresh the tests list for this patient
     await loadTests(currentPatientId);
   } catch (err) {
-    console.error("Save test error:", err);
-    showToast("Error: " + err.message, "error");
+    showToast(err.message, "error");
   } finally {
     saveTestBtn.disabled = false;
     saveTestBtn.textContent = "Save Test";
@@ -300,7 +299,7 @@ async function addLog(action, item) {
       time: serverTimestamp()
     });
   } catch (e) {
-    console.warn("Log write failed (non-critical):", e.message);
+    console.warn("Log write failed:", e.message);
   }
 }
 
@@ -308,13 +307,11 @@ async function loadLogs() {
   try {
     const q = query(collection(db, "logs"), orderBy("time", "desc"));
     const snapshot = await getDocs(q);
-
     logsView.innerHTML = "";
     if (snapshot.empty) {
       logsView.innerHTML = `<div class="empty-state"><div class="empty-icon">📝</div><p>No activity yet.</p></div>`;
       return;
     }
-
     snapshot.forEach(doc => {
       const l = doc.data();
       const div = document.createElement("div");
@@ -345,7 +342,7 @@ logsTab.onclick = async () => {
   logsView.classList.remove("hidden");
   logsTab.classList.add("active");
   patientsTab.classList.remove("active");
-  await loadLogs(); // refresh logs when tab is opened
+  await loadLogs();
 };
 
 // ── Helpers ───────────────────────────────────────────────
