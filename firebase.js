@@ -1,8 +1,9 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+// Firestore LITE — no WebSocket, no IndexedDB, direct HTTP writes to server
+// This is the reliable choice for static GitHub Pages hosting
+import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-lite.js";
 
-// Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyDHgwCyZQmnsl98xTwinVXAWKprcPax0vI",
   authDomain: "pathology-register.firebaseapp.com",
@@ -12,8 +13,6 @@ const firebaseConfig = {
   appId: "1:575059004359:web:9ad3e1ac57358b7ae767e2"
 };
 
-
 const app = initializeApp(firebaseConfig);
-
 export const auth = getAuth(app);
 export const db = getFirestore(app);
