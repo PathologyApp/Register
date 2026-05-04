@@ -1,7 +1,6 @@
 const SUPABASE_URL = "https://cgdnrdlrwxozkmjjlnog.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnZG5yZGxyd3hvemttampsbm9nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4MjcxMzQsImV4cCI6MjA5MzQwMzEzNH0.PuXwx8ZShX7_seIs3c9-TJhXKCOyNUgb7RMxCOkynCU";
 
-// We use the standard fetch-based Supabase client for zero-dependency reliability
 export const supabase = {
   async from(table) {
     const baseUrl = `${SUPABASE_URL}/rest/v1/${table}`;
@@ -27,6 +26,13 @@ export const supabase = {
           headers
         });
         return await res.json();
+      },
+      async delete(id) {
+        const res = await fetch(`${baseUrl}?id=eq.${id}`, {
+          method: "DELETE",
+          headers
+        });
+        return res.ok;
       }
     };
   }

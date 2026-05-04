@@ -85,33 +85,25 @@ patientModal.onclick = (e) => { if (e.target === patientModal) patientModal.clas
 // ── Save Patient ──────────────────────────────────────────
 savePatientBtn.onclick = async () => {
   if (!auth.currentUser) { showToast("Please login first", "error"); return; }
-
   const name   = document.getElementById("pName").value.trim();
   const age    = document.getElementById("pAge").value.trim();
   const gender = document.getElementById("pGender").value;
   const date   = document.getElementById("pDate").value;
-
   if (!name) { showToast("Enter patient name", "error"); return; }
-
   savePatientBtn.disabled = true;
   savePatientBtn.textContent = "Saving…";
-
   try {
-    const table = await supabase.from("patients");
-    const result = await table.insert({
+    await (await supabase.from("patients")).insert({
       name, age, gender,
       admission_date: date,
       created_by: auth.currentUser.email
     });
-
     await addLog("Added Patient", name);
     showToast(`✓ ${name} added`, "success");
-
     document.getElementById("pName").value = "";
     document.getElementById("pAge").value = "";
     document.getElementById("pDate").value = "";
     patientModal.classList.add("hidden");
-
     await loadPatients();
   } catch (err) {
     showToast("Error saving patient", "error");
@@ -127,23 +119,14 @@ async function loadPatients() {
   try {
     const data = await (await supabase.from("patients")).select();
     const tests = await (await supabase.from("tests")).select();
-    
     patientList.innerHTML = "";
-
     if (!data || data.length === 0) {
-      patientList.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-icon">📋</div>
-          <p>No patients yet. Tap <strong>+</strong> to add one.</p>
-        </div>`;
+      patientList.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><p>No patients yet.</p></div>`;
       return;
     }
-
     data.forEach(p => {
-      // Calculate total for this patient
       const pTests = tests.filter(t => t.patient_id == p.id);
       const total = pTests.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
-      
       const card = buildPatientCard(p.id, p, total);
       patientList.appendChild(card);
     });
@@ -172,7 +155,7 @@ function buildPatientCard(id, p, total) {
         <div id="tests-${id}"><div class="no-tests">Loading…</div></div>
         <div class="card-actions">
            <button class="add-test-btn" data-id="${id}">+ Add Test</button>
-           <button class="delete-patient-btn" data-id="${id}" data-name="${p.name}">🗑 Delete</button>
+           <button class="delete-patient-btn" data-id="${id}" data-name="${p.name}">🗑 Delete Patient</button>
         </div>
       </div>
     </div>`;
@@ -186,7 +169,6 @@ function buildPatientCard(id, p, total) {
     chev.classList.toggle("open", !isOpen);
     if (!isOpen) await loadTests(id);
   };
-
   return card;
 }
 
@@ -195,26 +177,24 @@ async function loadTests(patientId) {
   const container = document.getElementById(`tests-${patientId}`);
   if (!container) return;
   container.innerHTML = `<div class="no-tests">Loading…</div>`;
-
   try {
     const data = await (await supabase.from("tests")).select();
-    const patientTests = data.filter(t => t.patient_id == patientId);
+    const pTests = data.filter(t => t.patient_id == patientId);
     container.innerHTML = "";
-
-    if (patientTests.length === 0) {
+    if (pTests.length === 0) {
       container.innerHTML = `<div class="no-tests">No tests added yet</div>`;
       return;
     }
-
-    patientTests.forEach(t => {
+    pTests.forEach(t => {
       const div = document.createElement("div");
       div.className = "test-item";
       div.innerHTML = `
         <span class="test-name">${t.test_name}</span>
-        <span class="test-right">
+        <div class="test-right">
           ${t.amount ? `<span class="test-amount">₹${t.amount}</span>` : ""}
           <span class="test-date">${formatDate(t.test_date)}</span>
-        </span>`;
+          <button class="delete-test-btn" data-id="${t.id}" data-name="${t.test_name}" data-pid="${patientId}">✕</button>
+        </div>`;
       container.appendChild(div);
     });
   } catch (err) {
@@ -222,27 +202,31 @@ async function loadTests(patientId) {
   }
 }
 
-// ── Delete Patient ────────────────────────────────────────
+// ── Global Clicks (Deletes) ────────────────────────────────
 document.addEventListener("click", async (e) => {
+  // Delete Patient
   if (e.target.classList.contains("delete-patient-btn")) {
-    const id = e.target.dataset.id;
-    const name = e.target.dataset.name;
-    if (confirm(`Are you sure you want to delete ${name}?`)) {
+    const { id, name } = e.target.dataset;
+    if (confirm(`Delete ${name} and all their records?`)) {
       try {
-        // Since we are using fetch-based helper, we just delete by ID
-        const baseUrl = `https://cgdnrdlrwxozkmjjlnog.supabase.co/rest/v1/patients?id=eq.${id}`;
-        await fetch(baseUrl, {
-          method: "DELETE",
-          headers: {
-            "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnZG5yZGxyd3hvemttampsbm9nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4MjcxMzQsImV4cCI6MjA5MzQwMzEzNH0.PuXwx8ZShX7_seIs3c9-TJhXKCOyNUgb7RMxCOkynCU",
-            "Authorization": `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnZG5yZGxyd3hvemttampsbm9nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4MjcxMzQsImV4cCI6MjA5MzQwMzEzNH0.PuXwx8ZShX7_seIs3c9-TJhXKCOyNUgb7RMxCOkynCU`
-          }
-        });
-        showToast("Patient deleted", "info");
+        await (await supabase.from("patients")).delete(id);
+        await addLog("Deleted Patient", name);
+        showToast("Patient removed", "info");
         loadPatients();
-      } catch (err) {
-        showToast("Error deleting", "error");
-      }
+      } catch (err) { showToast("Delete failed", "error"); }
+    }
+  }
+  // Delete Test
+  if (e.target.classList.contains("delete-test-btn")) {
+    const { id, name, pid } = e.target.dataset;
+    if (confirm(`Delete test "${name}"?`)) {
+      try {
+        await (await supabase.from("tests")).delete(id);
+        await addLog("Deleted Test", name);
+        showToast("Test removed", "info");
+        await loadPatients(); // Refresh total
+        await loadTests(pid); // Refresh test list
+      } catch (err) { showToast("Delete failed", "error"); }
     }
   }
 });
@@ -276,18 +260,15 @@ saveTestBtn.onclick = async () => {
       amount: amount,
       added_by: auth.currentUser.email
     });
-    showToast("Test saved", "success");
+    await addLog("Added Test", `${name} (₹${amount})`);
+    showToast(`✓ Test saved`, "success");
     document.getElementById("tName").value = "";
     document.getElementById("tAmount").value = "";
     testModal.classList.add("hidden");
-    await loadPatients(); // Reload for total
+    await loadPatients();
     await loadTests(currentPatientId);
-  } catch (err) {
-    showToast("Error", "error");
-  } finally {
-    saveTestBtn.disabled = false;
-    saveTestBtn.textContent = "Save Test";
-  }
+  } catch (err) { showToast("Error", "error"); }
+  finally { saveTestBtn.disabled = false; saveTestBtn.textContent = "Save Test"; }
 };
 
 // ── Logs ──────────────────────────────────────────────────

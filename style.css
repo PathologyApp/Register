@@ -291,6 +291,22 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
 }
 .test-name { font-weight: 500; color: var(--text); }
 .test-right { display: flex; align-items: center; gap: 10px; }
+
+.delete-test-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.delete-test-btn:hover {
+  background: #fff0f0;
+  color: #ff4d4d;
+}
 .test-amount {
   color: var(--success);
   font-weight: 600;
