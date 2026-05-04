@@ -40,7 +40,11 @@ export const supabase = {
           headers: { ...headers, "Prefer": "return=minimal" },
           body: JSON.stringify(data)
         });
-        return res.ok;
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.message || "Update failed");
+        }
+        return true;
       }
     };
   }

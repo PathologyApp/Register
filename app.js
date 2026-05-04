@@ -9,7 +9,7 @@ import { onAuthStateChanged }
 const LAB_KEY = "LAB2024"; // The "Lab Register Key"
 let isLabUser = localStorage.getItem("lab_unlocked") === "true";
 let useSampleMode = localStorage.getItem("sample_mode") === "true";
-let isAdmin = false;
+let isAdmin = true; // Enabled for all users during testing
 
 // ── DOM refs ──────────────────────────────────────────────
 const authScreen        = document.getElementById("authScreen");
@@ -115,18 +115,19 @@ async function enterApp() {
   appEl.classList.remove("hidden");
   userInfo.textContent = user.displayName || user.email.split("@")[0];
   
-  // Temporarily enable admin/delete permissions for everyone with the key
+  // Force admin/delete permissions for everyone with the key
   isAdmin = true; 
-  
+  console.log("Admin Mode: Active");
+
   if (useSampleMode) {
     modeBadge.textContent = "Sample App";
     modeBadge.className = "mode-badge sample";
   } else {
     modeBadge.textContent = "Lab Database";
     modeBadge.className = "mode-badge lab";
-    // We keep the check in case we want to differentiate later, but isAdmin is already true
-    await checkAdminStatus(user.email);
-    isAdmin = true; // Force true again just in case checkAdminStatus set it to false
+    // We run the check for logs, but don't let it reset isAdmin to false
+    await checkAdminStatus(user.email).catch(() => {});
+    isAdmin = true; 
   }
   
   loadPatients();
@@ -279,11 +280,15 @@ async function loadTests(patientId) {
 async function togglePaymentStatus(id, patientId, currentPaid) {
   try {
     const newStatus = !currentPaid;
+    console.log(`Updating test ${id} to paid: ${newStatus}`);
     await (await supabase.from(getTable("tests"))).update(id, { paid: newStatus });
     await loadTests(patientId);
-    await loadPatients(); // Update total if needed
+    await loadPatients();
     showToast(newStatus ? "Payment Received" : "Marked as Pending", "success");
-  } catch (e) { showToast("Update failed", "error"); }
+  } catch (e) { 
+    console.error("Payment update error:", e);
+    showToast(`Error: ${e.message}`, "error"); 
+  }
 }
 
 document.addEventListener("click", async (e) => {

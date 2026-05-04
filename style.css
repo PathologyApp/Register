@@ -242,7 +242,14 @@ header {
   border-bottom: 1px solid var(--border);
   padding: 0 16px;
   gap: 4px;
+  overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  position: sticky;
+  top: 58px; /* Below header */
+  z-index: 99;
 }
+.tabs::-webkit-scrollbar { display: none; }
 
 .tab {
   padding: 13px 18px;
@@ -356,15 +363,29 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 9px 12px;
+  padding: 12px;
   background: white;
   border-radius: var(--radius-sm);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   border: 1px solid var(--border);
   font-size: 13px;
+  gap: 12px;
 }
-.test-name { font-weight: 500; color: var(--text); }
-.test-right { display: flex; align-items: center; gap: 10px; }
+.test-left-info { flex: 1; min-width: 0; }
+.test-name { font-weight: 600; color: var(--text); display: block; overflow: hidden; text-overflow: ellipsis; }
+.test-sub-info { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+
+.test-right { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+
+.payment-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  min-width: 85px;
+  justify-content: flex-end;
+}
 
 .delete-test-btn {
   background: transparent;
