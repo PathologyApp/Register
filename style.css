@@ -868,6 +868,92 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
   font-weight: 600;
 }
 
+/* ── Reports View ─────────────────────────────────────── */
+.report-controls {
+  background: white;
+  padding: 20px;
+  border-radius: var(--radius);
+  margin-bottom: 25px;
+  box-shadow: var(--shadow);
+}
+
+.selector-group {
+  display: flex;
+  gap: 12px;
+  margin-top: 15px;
+  flex-wrap: wrap;
+}
+
+.selector-group select {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.report-table-container {
+  overflow-x: auto;
+  background: white;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 30px;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 500px;
+}
+
+.report-table th {
+  background: var(--surface2);
+  padding: 12px 15px;
+  text-align: left;
+  color: var(--text-2);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+
+.report-table td {
+  padding: 15px;
+  border-bottom: 1px solid var(--surface2);
+}
+
+.report-table tr:last-child td { border-bottom: none; }
+
+.report-patient-info { font-weight: 700; color: var(--text); }
+.report-patient-date { font-size: 11px; color: var(--text-3); display: block; margin-top: 2px; }
+.report-tests { color: var(--text-2); font-size: 12px; line-height: 1.4; }
+.amt-collected { color: #16a34a; font-weight: 700; }
+.amt-pending { color: #e11d48; font-weight: 700; }
+
+.report-summary-box {
+  background: var(--primary);
+  color: white;
+  padding: 25px;
+  border-radius: var(--radius);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 20px;
+  text-align: center;
+}
+
+.summary-item label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  opacity: 0.8;
+  margin-bottom: 5px;
+}
+
+.summary-item span {
+  font-size: 22px;
+  font-weight: 800;
+}
+
 .payment-card {
   background: white;
   border-radius: var(--radius);

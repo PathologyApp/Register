@@ -124,6 +124,13 @@ const closePayDateModal  = document.getElementById("closePaymentDateModal");
 const totalPaidGlobal    = document.getElementById("totalPaidGlobal");
 const paidList           = document.getElementById("paidList");
 
+const reportsTab         = document.getElementById("reportsTab");
+const reportsView        = document.getElementById("reportsView");
+const reportMonth        = document.getElementById("reportMonth");
+const reportYear         = document.getElementById("reportYear");
+const generateReportBtn  = document.getElementById("generateReportBtn");
+const reportContent      = document.getElementById("reportContent");
+
 let currentTestIdForPayment = null; // Track which test is being marked paid
 
 // ── Helpers ───────────────────────────────────────────────
@@ -209,7 +216,19 @@ async function enterApp() {
     isAdmin = true; 
   }
   
+  initReportSelectors();
   loadPatients();
+}
+
+function initReportSelectors() {
+  const currentYear = new Date().getFullYear();
+  for (let y = currentYear; y >= 2024; y--) {
+    const opt = document.createElement("option");
+    opt.value = y;
+    opt.textContent = y;
+    reportYear.appendChild(opt);
+  }
+  reportMonth.value = new Date().getMonth();
 }
 
 async function checkAdminStatus(email) {
@@ -619,18 +638,22 @@ patientsTab.onclick = () => {
   patientSearchCont.classList.remove("hidden");
   paymentView.classList.add("hidden");
   logsView.classList.add("hidden");
+  reportsView.classList.add("hidden");
   patientsTab.classList.add("active");
   paymentsTab.classList.remove("active");
   logsTab.classList.remove("active");
+  reportsTab.classList.remove("active");
 };
 paymentsTab.onclick = async () => {
   patientList.classList.add("hidden");
   patientSearchCont.classList.add("hidden");
   paymentView.classList.remove("hidden");
   logsView.classList.add("hidden");
+  reportsView.classList.add("hidden");
   paymentsTab.classList.add("active");
   patientsTab.classList.remove("active");
   logsTab.classList.remove("active");
+  reportsTab.classList.remove("active");
   await loadPayments();
 };
 logsTab.onclick = async () => {
@@ -638,11 +661,119 @@ logsTab.onclick = async () => {
   patientSearchCont.classList.add("hidden");
   paymentView.classList.add("hidden");
   logsView.classList.remove("hidden");
+  reportsView.classList.add("hidden");
   logsTab.classList.add("active");
   patientsTab.classList.remove("active");
   paymentsTab.classList.remove("active");
+  reportsTab.classList.remove("active");
   await loadLogs();
 };
+
+reportsTab.onclick = () => {
+  patientList.classList.add("hidden");
+  patientSearchCont.classList.add("hidden");
+  paymentView.classList.add("hidden");
+  logsView.classList.add("hidden");
+  reportsView.classList.remove("hidden");
+  reportsTab.classList.add("active");
+  patientsTab.classList.remove("active");
+  paymentsTab.classList.remove("active");
+  logsTab.classList.remove("active");
+};
+
+generateReportBtn.onclick = () => generateReport();
+
+function generateReport() {
+  const month = parseInt(reportMonth.value);
+  const year = parseInt(reportYear.value);
+  
+  // Filter tests that were performed in this month
+  const monthTests = allTests.filter(t => {
+    const d = new Date(t.test_date);
+    return d.getMonth() === month && d.getFullYear() === year;
+  });
+
+  if (monthTests.length === 0) {
+    reportContent.innerHTML = `<div class="empty-state">No activity recorded for this month.</div>`;
+    return;
+  }
+
+  // Group by patient
+  const patientGroups = {};
+  monthTests.forEach(t => {
+    if (!patientGroups[t.patient_id]) {
+      const p = allPatients.find(ap => ap.id == t.patient_id);
+      patientGroups[t.patient_id] = {
+        name: p ? p.name : "Unknown",
+        admission: p ? p.admission_date : "",
+        tests: [],
+        collected: 0,
+        pending: 0
+      };
+    }
+    const group = patientGroups[t.patient_id];
+    group.tests.push(t.test_name);
+    const amt = parseFloat(t.amount) || 0;
+    if (t.paid) group.collected += amt;
+    else group.pending += amt;
+  });
+
+  let html = `
+    <div class="report-table-container">
+      <table class="report-table">
+        <thead>
+          <tr>
+            <th>Patient (Adm. Date)</th>
+            <th>Tests Taken</th>
+            <th>Collected</th>
+            <th>Pending</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+
+  let totalCollected = 0;
+  let totalTestsCount = monthTests.length;
+  let patientIds = Object.keys(patientGroups);
+
+  patientIds.forEach(pid => {
+    const g = patientGroups[pid];
+    totalCollected += g.collected;
+    html += `
+      <tr>
+        <td>
+          <span class="report-patient-info">${g.name}</span>
+          <span class="report-patient-date">Adm: ${formatDate(g.admission)}</span>
+        </td>
+        <td class="report-tests">${g.tests.join(", ")}</td>
+        <td class="amt-collected">₹${g.collected}</td>
+        <td class="amt-pending">₹${g.pending}</td>
+      </tr>
+    `;
+  });
+
+  html += `
+        </tbody>
+      </table>
+    </div>
+    <div class="report-summary-box">
+      <div class="summary-item">
+        <label>Total Patients</label>
+        <span>${patientIds.length}</span>
+      </div>
+      <div class="summary-item">
+        <label>Total Tests</label>
+        <span>${totalTestsCount}</span>
+      </div>
+      <div class="summary-item">
+        <label>Total Collected</label>
+        <span>₹${totalCollected}</span>
+      </div>
+    </div>
+  `;
+
+  reportContent.innerHTML = html;
+}
 
 async function loadPayments() {
   paymentList.innerHTML = `<div class="loading-state">Analyzing accounts...</div>`;
