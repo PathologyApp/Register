@@ -325,6 +325,11 @@ function buildPatientCard(id, p, total) {
 }
 
 // ── Load Tests ────────────────────────────────────────────
+function getPatientName(id) {
+  const p = allPatients.find(p => p.id == id);
+  return p ? p.name : "Unknown Patient";
+}
+
 async function loadTests(patientId) {
   const container = document.getElementById(`tests-${patientId}`);
   if (!container) return;
@@ -398,7 +403,8 @@ document.addEventListener("click", async (e) => {
     const { id, name, pid } = e.target.dataset;
     if (confirm(`Delete test "${name}"?`)) {
       await (await supabase.from(getTable("tests"))).delete(id);
-      await addLog("Deleted Test", name);
+      const pName = getPatientName(pid);
+      await addLog("Deleted Test", `${name} for ${pName}`);
       showToast("Removed", "info");
       await loadPatients();
       await loadTests(pid);
@@ -471,7 +477,8 @@ saveTestBtn.onclick = async () => {
       added_by: auth.currentUser.email,
       paid: false
     });
-    await addLog("Added Test", name);
+    const pName = getPatientName(currentPatientId);
+    await addLog("Added Test", `${name} for ${pName}`);
     showToast(`✓ Test saved`, "success");
     testModal.classList.add("hidden");
     document.getElementById("tName").value = "";
