@@ -10,6 +10,71 @@ const LAB_KEY = "LAB2024"; // The "Lab Register Key"
 let isLabUser = localStorage.getItem("lab_unlocked") === "true";
 let useSampleMode = localStorage.getItem("sample_mode") === "true";
 let isAdmin = true; // Enabled for all users during testing
+let allPatients = [];
+let allTests = [];
+
+const TEST_LIST = [
+  { name: "C.B.C.", price: 250 },
+  { name: "Hb%", price: 100 },
+  { name: "ESR", price: 100 },
+  { name: "P. Smear", price: 100 },
+  { name: "P.S. for M.P.", price: 100 },
+  { name: "M.P. Card Test", price: 100 },
+  { name: "B.T./C.T.", price: 100 },
+  { name: "Blood Group/Rh Type", price: 100 },
+  { name: "PT / INR", price: 300 },
+  { name: "P.T.T.", price: 300 },
+  { name: "Sickling", price: 400 },
+  { name: "Reti Count", price: 200 },
+  { name: "Routine / B.S. & B.P.", price: 100 },
+  { name: "Culture & Sensitivity", price: 1000 },
+  { name: "Pregnancy Test", price: 100 },
+  { name: "Routine / Microscopy", price: 300 },
+  { name: "Occult Blood", price: 300 },
+  { name: "R.B.S. (Blood Sugar)", price: 80 },
+  { name: "P.M.B.S. (Blood Sugar)", price: 160 },
+  { name: "F.B.S. (Blood Sugar)", price: 160 },
+  { name: "K.F.T.", price: 600 },
+  { name: "Urea", price: 100 },
+  { name: "Sr. Creatinine", price: 100 },
+  { name: "Electrolytes (Na+/K+)", price: 400 },
+  { name: "Serum Ca", price: 100 },
+  { name: "Ionic Ca", price: 400 },
+  { name: "Uric Acid", price: 100 },
+  { name: "L.F.T.", price: 700 },
+  { name: "Bilirubin", price: 200 },
+  { name: "S.G.O.T.", price: 100 },
+  { name: "S.G.P.T.", price: 100 },
+  { name: "Alk. Phos", price: 100 },
+  { name: "Sr. Proriens", price: 100 },
+  { name: "Sr. Albumine", price: 100 },
+  { name: "Cholesterol", price: 100 },
+  { name: "H.D.L. Cholesterol", price: 100 },
+  { name: "L.D.L. Cholesterol", price: 100 },
+  { name: "Triglycerides", price: 100 },
+  { name: "CPK M.B.", price: 600 },
+  { name: "Troponin - I", price: 1500 },
+  { name: "SGOT", price: 100 },
+  { name: "L.D.H.", price: 600 },
+  { name: "Amylase", price: 600 },
+  { name: "Lipase", price: 600 },
+  { name: "Cholin estarase", price: 600 },
+  { name: "CPK (Total)", price: 600 },
+  { name: "Widal Test", price: 100 },
+  { name: "Typhoid antibody", price: 200 },
+  { name: "H.I.V.", price: 200 },
+  { name: "V.D.R.L.", price: 200 },
+  { name: "Australia Ag. (HBSAg.)", price: 200 },
+  { name: "Montoux Test", price: 100 },
+  { name: "R.A. Test", price: 200 },
+  { name: "C.R.P.", price: 300 },
+  { name: "A.S.O. Titre", price: 100 },
+  { name: "Dengue Card Test", price: 600 },
+  { name: "C.S.F. Exam", price: 1000 },
+  { name: "T.S.H. only", price: 400 },
+  { name: "T₃ T₄ T.S.H.", price: 500 },
+  { name: "HBA1C", price: 600 }
+];
 
 // ── DOM refs ──────────────────────────────────────────────
 const authScreen        = document.getElementById("authScreen");
@@ -39,11 +104,16 @@ const paymentView       = document.getElementById("paymentView");
 const paymentList       = document.getElementById("paymentList");
 const totalPendingGlobal = document.getElementById("totalPendingGlobal");
 const logsView          = document.getElementById("logsView");
+const testDropdown      = document.getElementById("testDropdown");
+const tNameInput        = document.getElementById("tName");
+const tAmountInput      = document.getElementById("tAmount");
 
 const patientsTab       = document.getElementById("patientsTab");
 const paymentsTab       = document.getElementById("paymentsTab");
 const logsTab           = document.getElementById("logsTab");
 const toastEl           = document.getElementById("toast");
+const patientSearch     = document.getElementById("patientSearch");
+const patientSearchCont = document.getElementById("patientSearchContainer");
 
 let currentPatientId = null;
 
@@ -185,23 +255,37 @@ savePatientBtn.onclick = async () => {
 async function loadPatients() {
   patientList.innerHTML = `<div class="loading-state">Loading patients…</div>`;
   try {
-    const data = await (await supabase.from(getTable("patients"))).select();
-    const tests = await (await supabase.from(getTable("tests"))).select();
-    patientList.innerHTML = "";
-    if (!data || data.length === 0) {
-      patientList.innerHTML = `<div class="empty-state">No patients yet.</div>`;
-      return;
-    }
-    data.forEach(p => {
-      const pTests = tests.filter(t => t.patient_id == p.id);
-      const total = pTests.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
-      const card = buildPatientCard(p.id, p, total);
-      patientList.appendChild(card);
-    });
+    allPatients = await (await supabase.from(getTable("patients"))).select();
+    allTests = await (await supabase.from(getTable("tests"))).select();
+    renderPatients(allPatients);
   } catch (err) {
     patientList.innerHTML = `<div class="empty-state">Error loading data.</div>`;
   }
 }
+
+function renderPatients(patients) {
+  patientList.innerHTML = "";
+  if (!patients || patients.length === 0) {
+    patientList.innerHTML = `<div class="empty-state">No patients found.</div>`;
+    return;
+  }
+  
+  // Sort patients by date (newest first)
+  const sorted = [...patients].sort((a,b) => new Date(b.admission_date) - new Date(a.admission_date));
+
+  sorted.forEach(p => {
+    const pTests = allTests.filter(t => t.patient_id == p.id);
+    const total = pTests.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+    const card = buildPatientCard(p.id, p, total);
+    patientList.appendChild(card);
+  });
+}
+
+patientSearch.oninput = (e) => {
+  const q = e.target.value.toLowerCase();
+  const filtered = allPatients.filter(p => p.name.toLowerCase().includes(q));
+  renderPatients(filtered);
+};
 
 function buildPatientCard(id, p, total) {
   const card = document.createElement("div");
@@ -328,9 +412,45 @@ document.addEventListener("click", (e) => {
     currentPatientId = e.target.dataset.id;
     testModal.classList.remove("hidden");
     setTodayIfEmpty("tDate");
-    document.getElementById("tName").focus();
+    tNameInput.focus();
+    renderTestDropdown(""); // Reset dropdown
   }
 });
+
+function renderTestDropdown(query) {
+  const q = query.toLowerCase();
+  const filtered = TEST_LIST.filter(t => t.name.toLowerCase().includes(q));
+  
+  testDropdown.innerHTML = "";
+  if (filtered.length === 0) {
+    testDropdown.classList.add("hidden");
+    return;
+  }
+
+  filtered.forEach(t => {
+    const item = document.createElement("div");
+    item.className = "dropdown-item";
+    item.innerHTML = `<span>${t.name}</span><span class="item-price">₹${t.price}</span>`;
+    item.onclick = () => {
+      tNameInput.value = t.name;
+      tAmountInput.value = t.price;
+      testDropdown.classList.add("hidden");
+    };
+    testDropdown.appendChild(item);
+  });
+  testDropdown.classList.remove("hidden");
+}
+
+tNameInput.oninput = (e) => renderTestDropdown(e.target.value);
+tNameInput.onfocus = (e) => renderTestDropdown(e.target.value);
+
+// Hide dropdown when clicking outside
+document.addEventListener("click", (e) => {
+  if (!e.target.closest('.autocomplete-container')) {
+    testDropdown.classList.add("hidden");
+  }
+});
+
 closeTestModal.onclick = () => testModal.classList.add("hidden");
 
 // ── Save Test ─────────────────────────────────────────────
@@ -387,6 +507,7 @@ async function loadLogs() {
 
 patientsTab.onclick = () => {
   patientList.classList.remove("hidden");
+  patientSearchCont.classList.remove("hidden");
   paymentView.classList.add("hidden");
   logsView.classList.add("hidden");
   patientsTab.classList.add("active");
@@ -395,6 +516,7 @@ patientsTab.onclick = () => {
 };
 paymentsTab.onclick = async () => {
   patientList.classList.add("hidden");
+  patientSearchCont.classList.add("hidden");
   paymentView.classList.remove("hidden");
   logsView.classList.add("hidden");
   paymentsTab.classList.add("active");
@@ -404,6 +526,7 @@ paymentsTab.onclick = async () => {
 };
 logsTab.onclick = async () => {
   patientList.classList.add("hidden");
+  patientSearchCont.classList.add("hidden");
   paymentView.classList.add("hidden");
   logsView.classList.remove("hidden");
   logsTab.classList.add("active");
