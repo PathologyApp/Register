@@ -13,6 +13,7 @@ let isAdmin = true; // Enabled for all users during testing
 let allPatients = [];
 let allTests = [];
 let selectedTests = []; // State for multi-test selection in modal
+let currentPatientId = null;
 
 const TEST_LIST = [
   { name: "C.B.C.", price: 250 },
@@ -110,6 +111,7 @@ const testDropdown      = document.getElementById("testDropdown");
 const tNameInput        = document.getElementById("tName");
 const selectedTestsList = document.getElementById("selectedTestsList");
 
+const patientsTab       = document.getElementById("patientsTab");
 const paymentsTab       = document.getElementById("paymentsTab");
 const logsTab           = document.getElementById("logsTab");
 const toastEl           = document.getElementById("toast");
@@ -122,9 +124,7 @@ const closePayDateModal  = document.getElementById("closePaymentDateModal");
 const totalPaidGlobal    = document.getElementById("totalPaidGlobal");
 const paidList           = document.getElementById("paidList");
 
-let currentPatientId = null;
 let currentTestIdForPayment = null; // Track which test is being marked paid
-let selectedTests = []; 
 
 // ── Helpers ───────────────────────────────────────────────
 function getTable(base) {
