@@ -48,6 +48,7 @@ const TEST_LIST = [
   { name: "Alk. Phos", price: 100 },
   { name: "Sr. Proriens", price: 100 },
   { name: "Sr. Albumine", price: 100 },
+  { name: "LIPID PROFILE", price: 400 },
   { name: "Cholesterol", price: 100 },
   { name: "H.D.L. Cholesterol", price: 100 },
   { name: "L.D.L. Cholesterol", price: 100 },
