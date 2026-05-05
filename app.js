@@ -128,6 +128,10 @@ const reportsTab         = document.getElementById("reportsTab");
 const reportsView        = document.getElementById("reportsView");
 const reportMonth        = document.getElementById("reportMonth");
 const reportYear         = document.getElementById("reportYear");
+const reportType         = document.getElementById("reportType");
+const monthlySelectors   = document.getElementById("monthlySelectors");
+const dailySelectors     = document.getElementById("dailySelectors");
+const reportDate         = document.getElementById("reportDate");
 const generateReportBtn  = document.getElementById("generateReportBtn");
 const reportContent      = document.getElementById("reportContent");
 
@@ -229,7 +233,14 @@ function initReportSelectors() {
     reportYear.appendChild(opt);
   }
   reportMonth.value = new Date().getMonth();
+  reportDate.value = new Date().toISOString().split("T")[0];
 }
+
+reportType.onchange = () => {
+  const type = reportType.value;
+  monthlySelectors.classList.toggle("hidden", type !== "monthly");
+  dailySelectors.classList.toggle("hidden", type !== "daily");
+};
 
 async function checkAdminStatus(email) {
   try {
@@ -684,17 +695,27 @@ reportsTab.onclick = () => {
 generateReportBtn.onclick = () => generateReport();
 
 function generateReport() {
-  const month = parseInt(reportMonth.value);
-  const year = parseInt(reportYear.value);
-  
-  // Filter tests that were performed in this month
-  const monthTests = allTests.filter(t => {
-    const d = new Date(t.test_date);
-    return d.getMonth() === month && d.getFullYear() === year;
-  });
+  const type = reportType.value;
+  let monthTests = [];
+
+  if (type === "monthly") {
+    const month = parseInt(reportMonth.value);
+    const year = parseInt(reportYear.value);
+    monthTests = allTests.filter(t => {
+      const d = new Date(t.test_date);
+      return d.getMonth() === month && d.getFullYear() === year;
+    });
+  } else {
+    const targetDate = reportDate.value;
+    if (!targetDate) {
+      showToast("Please select a date", "info");
+      return;
+    }
+    monthTests = allTests.filter(t => t.test_date === targetDate);
+  }
 
   if (monthTests.length === 0) {
-    reportContent.innerHTML = `<div class="empty-state">No activity recorded for this month.</div>`;
+    reportContent.innerHTML = `<div class="empty-state">No activity recorded for this period.</div>`;
     return;
   }
 

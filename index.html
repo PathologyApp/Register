@@ -95,18 +95,32 @@
       <!-- Reports View -->
       <div id="reportsView" class="hidden">
         <div class="report-controls">
-          <h2>Monthly Report</h2>
-          <div class="selector-group">
-            <select id="reportMonth">
-              <option value="0">January</option><option value="1">February</option>
-              <option value="2">March</option><option value="3">April</option>
-              <option value="4">May</option><option value="5">June</option>
-              <option value="6">July</option><option value="7">August</option>
-              <option value="8">September</option><option value="9">October</option>
-              <option value="10">November</option><option value="11">December</option>
+          <div class="report-header-row">
+            <h2>Financial Report</h2>
+            <select id="reportType">
+              <option value="monthly">Monthly Basis</option>
+              <option value="daily">Daily Basis</option>
             </select>
-            <select id="reportYear"></select>
-            <button id="generateReportBtn" class="btn-primary">Generate</button>
+          </div>
+          
+          <div class="selector-group">
+            <div id="monthlySelectors" class="selector-subset">
+              <select id="reportMonth">
+                <option value="0">January</option><option value="1">February</option>
+                <option value="2">March</option><option value="3">April</option>
+                <option value="4">May</option><option value="5">June</option>
+                <option value="6">July</option><option value="7">August</option>
+                <option value="8">September</option><option value="9">October</option>
+                <option value="10">November</option><option value="11">December</option>
+              </select>
+              <select id="reportYear"></select>
+            </div>
+            
+            <div id="dailySelectors" class="selector-subset hidden">
+              <input type="date" id="reportDate"/>
+            </div>
+            
+            <button id="generateReportBtn" class="btn-primary">Generate Report</button>
           </div>
         </div>
         <div id="reportContent"></div>
