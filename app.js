@@ -110,14 +110,21 @@ const testDropdown      = document.getElementById("testDropdown");
 const tNameInput        = document.getElementById("tName");
 const selectedTestsList = document.getElementById("selectedTestsList");
 
-const patientsTab       = document.getElementById("patientsTab");
 const paymentsTab       = document.getElementById("paymentsTab");
 const logsTab           = document.getElementById("logsTab");
 const toastEl           = document.getElementById("toast");
 const patientSearch     = document.getElementById("patientSearch");
 const patientSearchCont = document.getElementById("patientSearchContainer");
+const paymentDateModal  = document.getElementById("paymentDateModal");
+const payDateInput       = document.getElementById("payDate");
+const confirmPaymentBtn  = document.getElementById("confirmPaymentBtn");
+const closePayDateModal  = document.getElementById("closePaymentDateModal");
+const totalPaidGlobal    = document.getElementById("totalPaidGlobal");
+const paidList           = document.getElementById("paidList");
 
 let currentPatientId = null;
+let currentTestIdForPayment = null; // Track which test is being marked paid
+let selectedTests = []; 
 
 // ── Helpers ───────────────────────────────────────────────
 function getTable(base) {
@@ -369,18 +376,55 @@ async function loadTests(patientId) {
 }
 
 async function togglePaymentStatus(id, patientId, currentPaid) {
-  try {
-    const newStatus = !currentPaid;
-    console.log(`Updating test ${id} to paid: ${newStatus}`);
-    await (await supabase.from(getTable("tests"))).update(id, { paid: newStatus });
-    await loadTests(patientId);
-    await loadPatients();
-    showToast(newStatus ? "Payment Received" : "Marked as Pending", "success");
-  } catch (e) { 
-    console.error("Payment update error:", e);
-    showToast(`Error: ${e.message}`, "error"); 
+  if (!currentPaid) {
+    // Switching to Paid: Show Modal
+    currentTestIdForPayment = id;
+    currentPatientId = patientId;
+    paymentDateModal.classList.remove("hidden");
+    payDateInput.value = new Date().toISOString().split("T")[0]; // Default today
+  } else {
+    // Switching back to Pending
+    try {
+      await (await supabase.from(getTable("tests"))).update(id, { paid: false, payment_date: null });
+      await loadTests(patientId);
+      await loadPatients();
+      if (!paymentView.classList.contains("hidden")) await loadPayments();
+      showToast("Marked as Pending", "info");
+    } catch (e) { showToast("Update failed", "error"); }
   }
 }
+
+confirmPaymentBtn.onclick = async () => {
+  const date = payDateInput.value;
+  if (!date) {
+    showToast("Please select a date", "info");
+    return;
+  }
+  
+  confirmPaymentBtn.disabled = true;
+  confirmPaymentBtn.textContent = "Updating…";
+  
+  try {
+    await (await supabase.from(getTable("tests"))).update(currentTestIdForPayment, { 
+      paid: true, 
+      payment_date: date 
+    });
+    
+    paymentDateModal.classList.add("hidden");
+    await loadTests(currentPatientId);
+    await loadPatients();
+    if (!paymentView.classList.contains("hidden")) await loadPayments();
+    showToast("Payment Received", "success");
+  } catch (e) {
+    console.error(e);
+    showToast("Error updating payment", "error");
+  } finally {
+    confirmPaymentBtn.disabled = false;
+    confirmPaymentBtn.textContent = "Confirm & Mark Paid";
+  }
+};
+
+closePayDateModal.onclick = () => paymentDateModal.classList.add("hidden");
 
 document.addEventListener("click", async (e) => {
   const toggle = e.target.closest('.payment-toggle');
@@ -602,55 +646,81 @@ logsTab.onclick = async () => {
 
 async function loadPayments() {
   paymentList.innerHTML = `<div class="loading-state">Analyzing accounts...</div>`;
+  paidList.innerHTML = `<div class="loading-state">Syncing collections...</div>`;
+  
   try {
     const patients = await (await supabase.from(getTable("patients"))).select();
     const tests = await (await supabase.from(getTable("tests"))).select();
     
     const pendingPatients = [];
-    let grandTotal = 0;
+    const paidPatients = [];
+    let totalPending = 0;
+    let totalPaid = 0;
 
     patients.forEach(p => {
       const pPendingTests = tests.filter(t => t.patient_id == p.id && !t.paid);
+      const pPaidTests = tests.filter(t => t.patient_id == p.id && t.paid);
+
       if (pPendingTests.length > 0) {
         const total = pPendingTests.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
         pendingPatients.push({ ...p, pendingTests: pPendingTests, total });
-        grandTotal += total;
+        totalPending += total;
+      }
+
+      if (pPaidTests.length > 0) {
+        const total = pPaidTests.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+        paidPatients.push({ ...p, paidTests: pPaidTests, total });
+        totalPaid += total;
       }
     });
 
-    totalPendingGlobal.textContent = `Total: ₹${grandTotal}`;
-    paymentList.innerHTML = "";
+    totalPendingGlobal.textContent = `Total Pending: ₹${totalPending}`;
+    totalPaidGlobal.textContent = `Collected: ₹${totalPaid}`;
 
-    if (pendingPatients.length === 0) {
-      paymentList.innerHTML = `<div class="empty-state">No pending payments! 🎉</div>`;
-      return;
-    }
+    renderPaymentList(paymentList, pendingPatients, "pending");
+    renderPaymentList(paidList, paidPatients, "paid");
 
-    pendingPatients.sort((a,b) => b.total - a.total).forEach(item => {
-      const card = document.createElement("div");
-      card.className = "payment-card";
-      card.innerHTML = `
-        <div class="payment-card-header">
-          <div>
-            <span class="payment-patient-name">${item.name}</span>
-            <span class="payment-patient-date">Joined ${formatDate(item.admission_date)}</span>
-          </div>
-          <div class="payment-amount-due">₹${item.total}</div>
-        </div>
-        <div class="pending-tests-list">
-          ${item.pendingTests.map(t => `
-            <div class="pending-test-item">
-              <span class="pending-test-name">${t.test_name}</span>
-              <span class="pending-test-price">₹${t.amount || 0}</span>
-            </div>
-          `).join('')}
-        </div>
-      `;
-      paymentList.appendChild(card);
-    });
   } catch (e) {
+    console.error(e);
     paymentList.innerHTML = `<div class="empty-state">Error loading payments.</div>`;
   }
+}
+
+function renderPaymentList(container, data, mode) {
+  container.innerHTML = "";
+  if (data.length === 0) {
+    container.innerHTML = `<div class="empty-state">${mode === 'pending' ? 'No pending payments! 🎉' : 'No collections yet.'}</div>`;
+    return;
+  }
+
+  data.sort((a,b) => b.total - a.total).forEach(item => {
+    const card = document.createElement("div");
+    card.className = `payment-card ${mode === 'paid' ? 'collected' : ''}`;
+    
+    const tests = mode === 'pending' ? item.pendingTests : item.paidTests;
+    
+    card.innerHTML = `
+      <div class="payment-card-header">
+        <div>
+          <span class="payment-patient-name">${item.name}</span>
+          <span class="payment-patient-date">${mode === 'pending' ? 'Joined ' + formatDate(item.admission_date) : 'Total Collection'}</span>
+        </div>
+        <div class="payment-amount-due">₹${item.total}</div>
+      </div>
+      <div class="pending-tests-list">
+        ${tests.map(t => `
+          <div class="pending-test-item">
+            <div style="display:flex; flex-direction:column;">
+              <span class="pending-test-name">${t.test_name}</span>
+              ${t.payment_date ? `<span class="collection-date">Paid on ${formatDate(t.payment_date)}</span>` : ""}
+            </div>
+            <span class="pending-test-price">₹${t.amount || 0}</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    container.appendChild(card);
+  });
 }
 
 function setTodayIfEmpty(inputId) {
