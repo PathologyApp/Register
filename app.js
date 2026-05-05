@@ -12,6 +12,7 @@ let useSampleMode = localStorage.getItem("sample_mode") === "true";
 let isAdmin = true; // Enabled for all users during testing
 let allPatients = [];
 let allTests = [];
+let selectedTests = []; // State for multi-test selection in modal
 
 const TEST_LIST = [
   { name: "C.B.C.", price: 250 },
@@ -107,7 +108,7 @@ const totalPendingGlobal = document.getElementById("totalPendingGlobal");
 const logsView          = document.getElementById("logsView");
 const testDropdown      = document.getElementById("testDropdown");
 const tNameInput        = document.getElementById("tName");
-const tAmountInput      = document.getElementById("tAmount");
+const selectedTestsList = document.getElementById("selectedTestsList");
 
 const patientsTab       = document.getElementById("patientsTab");
 const paymentsTab       = document.getElementById("paymentsTab");
@@ -420,6 +421,8 @@ document.addEventListener("click", (e) => {
     testModal.classList.remove("hidden");
     setTodayIfEmpty("tDate");
     tNameInput.focus();
+    selectedTests = []; // Reset selections
+    renderSelectedTests();
     renderTestDropdown(""); // Reset dropdown
   }
 });
@@ -439,13 +442,51 @@ function renderTestDropdown(query) {
     item.className = "dropdown-item";
     item.innerHTML = `<span>${t.name}</span><span class="item-price">₹${t.price}</span>`;
     item.onclick = () => {
-      tNameInput.value = t.name;
-      tAmountInput.value = t.price;
+      // Add to selected list instead of just filling input
+      if (selectedTests.some(st => st.name === t.name)) {
+        showToast("Test already added", "info");
+      } else {
+        selectedTests.push({ ...t });
+        renderSelectedTests();
+      }
+      tNameInput.value = "";
       testDropdown.classList.add("hidden");
     };
     testDropdown.appendChild(item);
   });
   testDropdown.classList.remove("hidden");
+}
+
+function renderSelectedTests() {
+  selectedTestsList.innerHTML = "";
+  if (selectedTests.length === 0) {
+    selectedTestsList.innerHTML = `<p class="empty-selection-msg">No tests selected yet.</p>`;
+    saveTestBtn.textContent = "Save All Tests";
+    return;
+  }
+
+  selectedTests.forEach((t, i) => {
+    const div = document.createElement("div");
+    div.className = "selected-test-item";
+    div.innerHTML = `
+      <span class="selected-test-name">${t.name}</span>
+      <input type="number" class="selected-test-price-input" value="${t.price}" data-index="${i}">
+      <button class="remove-selected-btn" data-index="${i}">✕</button>
+    `;
+    
+    div.querySelector('input').oninput = (e) => {
+      selectedTests[i].price = parseFloat(e.target.value) || 0;
+    };
+    
+    div.querySelector('.remove-selected-btn').onclick = () => {
+      selectedTests.splice(i, 1);
+      renderSelectedTests();
+    };
+    
+    selectedTestsList.appendChild(div);
+  });
+  
+  saveTestBtn.textContent = `Save ${selectedTests.length} Tests`;
 }
 
 tNameInput.oninput = (e) => renderTestDropdown(e.target.value);
@@ -463,31 +504,47 @@ closeTestModal.onclick = () => testModal.classList.add("hidden");
 // ── Save Test ─────────────────────────────────────────────
 saveTestBtn.onclick = async () => {
   if (!auth.currentUser) return;
-  const name = document.getElementById("tName").value.trim();
+  if (selectedTests.length === 0) {
+    showToast("Please select at least one test", "info");
+    return;
+  }
+  
   const date = document.getElementById("tDate").value;
-  const amount = parseFloat(document.getElementById("tAmount").value) || 0;
-  if (!name) return;
   saveTestBtn.disabled = true;
   saveTestBtn.textContent = "Saving…";
+  
   try {
-    await (await supabase.from(getTable("tests"))).insert({
+    const pName = getPatientName(currentPatientId);
+    
+    // Prepare batch insert
+    const testsToInsert = selectedTests.map(t => ({
       patient_id: currentPatientId,
-      test_name: name,
+      test_name: t.name,
       test_date: date,
-      amount: amount,
+      amount: t.price,
       added_by: auth.currentUser.email,
       paid: false
-    });
-    const pName = getPatientName(currentPatientId);
-    await addLog("Added Test", `${name} for ${pName}`);
-    showToast(`✓ Test saved`, "success");
+    }));
+
+    await (await supabase.from(getTable("tests"))).insert(testsToInsert);
+    
+    // Aggregate log entry
+    const testNames = selectedTests.map(t => t.name).join(", ");
+    await addLog("Added Tests", `${testNames} for ${pName}`);
+    
+    showToast(`✓ ${selectedTests.length} tests saved`, "success");
     testModal.classList.add("hidden");
-    document.getElementById("tName").value = "";
-    document.getElementById("tAmount").value = "";
+    tNameInput.value = "";
+    
     await loadPatients();
     await loadTests(currentPatientId);
-  } catch (err) { showToast("Error", "error"); }
-  finally { saveTestBtn.disabled = false; saveTestBtn.textContent = "Save Test"; }
+  } catch (err) { 
+    console.error(err);
+    showToast("Error saving tests", "error"); 
+  } finally { 
+    saveTestBtn.disabled = false; 
+    saveTestBtn.textContent = "Save All Tests"; 
+  }
 };
 
 // ── Logs & Helpers ────────────────────────────────────────

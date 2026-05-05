@@ -127,19 +127,24 @@
         <button class="modal-close" id="closeTestModal">✕</button>
       </div>
       <div class="form-group autocomplete-container">
-        <label for="tName">Test Name</label>
-        <input id="tName" type="text" placeholder="Search test name..." autocomplete="off"/>
+        <label for="tName">Search & Add Tests</label>
+        <input id="tName" type="text" placeholder="Type test name (e.g. CBC)..." autocomplete="off"/>
         <div id="testDropdown" class="dropdown-list hidden"></div>
       </div>
-      <div class="form-group">
+
+      <div id="selectedTestsContainer" class="selected-tests-container">
+        <label>Selected Tests</label>
+        <div id="selectedTestsList" class="selected-tests-list">
+          <p class="empty-selection-msg">No tests selected yet.</p>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top: 20px;">
         <label for="tDate">Test Date</label>
         <input id="tDate" type="date"/>
       </div>
-      <div class="form-group">
-        <label for="tAmount">Amount (₹)</label>
-        <input id="tAmount" type="number" placeholder="0" min="0" step="1"/>
-      </div>
-      <button id="saveTest" class="btn-primary">Save Test</button>
+      
+      <button id="saveTest" class="btn-primary">Save All Tests</button>
     </div>
   </div>
 
