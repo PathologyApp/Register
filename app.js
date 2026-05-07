@@ -276,7 +276,8 @@ async function enterApp() {
   if (!user) return;
 
   keyScreen.classList.add("hidden");
-  appEl.classList.remove("hidden");
+  landingScreen.classList.remove("hidden");
+  appEl.classList.add("hidden");
   userInfo.textContent = user.displayName || user.email.split("@")[0];
   
   // Force admin/delete permissions for everyone with the key
@@ -1659,12 +1660,12 @@ async function generateInvoice(patientId) {
   }
 }
 
-/* -- Onboarding Assistant Logic ------------------------ */
+/* ── Onboarding Assistant Logic ──────────────────────── */
 const TOUR_STEPS = [
   {
-    title: 'Welcome!',
-    text: 'Let\'s take a quick 1-minute tour to see what\'s new in your Pathology Register.',
-    target: null
+    title: 'Welcome to LabFlow',
+    text: 'You can now choose between managing your lab finances or handling diagnostics. Let\'s explore!',
+    target: 'landingScreen'
   },
   {
     title: 'Add New Patient',
@@ -1709,8 +1710,34 @@ const nextTourBtn = document.getElementById('nextTourBtn');
 const prevTourBtn = document.getElementById('prevTourBtn');
 const skipTourBtn = document.getElementById('skipTourBtn');
 
+const landingScreen = document.getElementById('landingScreen');
+const selectFinanceMode = document.getElementById('selectFinanceMode');
+const selectSampleMode = document.getElementById('selectSampleMode');
+
+selectFinanceMode.onclick = () => {
+  landingScreen.classList.add('hidden');
+  appEl.classList.remove('hidden');
+  // If tour is active and we are on step 0, move to next
+  if (!tutorialOverlay.classList.contains('hidden') && currentTourStep === 0) {
+    currentTourStep = 1;
+    showStep();
+  }
+};
+
+selectSampleMode.onclick = () => {
+  showToast("Lab Diagnostics module is coming soon!", "info");
+};
+
 function startTour() {
   if (localStorage.getItem('tour_completed') === 'true') return;
+  
+  // Start on landing screen if hidden
+  if (appEl.classList.contains('hidden')) {
+    landingScreen.classList.remove('hidden');
+    authScreen.classList.add('hidden');
+    keyScreen.classList.add('hidden');
+  }
+
   currentTourStep = 0;
   showStep();
   tutorialOverlay.classList.remove('hidden');
@@ -1719,8 +1746,8 @@ function startTour() {
 function showStep() {
   const step = TOUR_STEPS[currentTourStep];
   
-  // Change tab if needed
-  if (step.tab) {
+  // Change tab if needed (only if app is visible)
+  if (!appEl.classList.contains('hidden') && step.tab) {
     if (step.tab === 'patients') patientsTab.click();
     if (step.tab === 'payments') paymentsTab.click();
     if (step.tab === 'logs') logsTab.click();
@@ -1735,50 +1762,62 @@ function showStep() {
   nextTourBtn.textContent = currentTourStep === TOUR_STEPS.length - 1 ? 'Finish' : 'Next';
 
   setTimeout(() => {
+    let targetEl = null;
     if (step.target) {
-      const el = document.getElementById(step.target);
-      if (el) {
-        const rect = el.getBoundingClientRect();
-        const pad = 10;
-        tutorialSpotlight.style.width = `${rect.width + pad * 2}px`;
-        tutorialSpotlight.style.height = `${rect.height + pad * 2}px`;
-        tutorialSpotlight.style.left = `${rect.left - pad}px`;
-        tutorialSpotlight.style.top = `${rect.top - pad}px`;
-        tutorialSpotlight.classList.remove('hidden');
-
-        // Position card
-        const cardRect = tutorialCard.getBoundingClientRect();
-        let top = rect.bottom + 20;
-        if (top + cardRect.height > window.innerHeight) top = rect.top - cardRect.height - 20;
-        let left = rect.left + rect.width / 2 - cardRect.width / 2;
-        left = Math.max(20, Math.min(left, window.innerWidth - cardRect.width - 20));
-
-        tutorialCard.style.top = `${top}px`;
-        tutorialCard.style.left = `${left}px`;
-        tutorialCard.style.margin = '0';
-      } else {
-        resetToCenter();
-      }
-    } else {
-      resetToCenter();
+       targetEl = document.getElementById(step.target);
     }
-  }, 100);
-}
 
-function resetToCenter() {
-  tutorialSpotlight.style.width = '0';
-  tutorialSpotlight.style.height = '0';
-  tutorialSpotlight.style.left = '50%';
-  tutorialSpotlight.style.top = '50%';
-  tutorialCard.style.top = '50%';
-  tutorialCard.style.left = '50%';
-  tutorialCard.style.transform = 'translate(-50%, -50%)';
+    if (targetEl && targetEl.offsetParent !== null) {
+      const rect = targetEl.getBoundingClientRect();
+      const pad = 10;
+      
+      // Update Spotlight
+      tutorialSpotlight.classList.remove('hidden');
+      tutorialSpotlight.style.width = `${rect.width + pad * 2}px`;
+      tutorialSpotlight.style.height = `${rect.height + pad * 2}px`;
+      tutorialSpotlight.style.left = `${rect.left - pad}px`;
+      tutorialSpotlight.style.top = `${rect.top - pad}px`;
+
+      // Position Card
+      const cardRect = tutorialCard.getBoundingClientRect();
+      const padding = 20;
+      
+      let top = rect.bottom + 20;
+      // If no space at bottom, show at top
+      if (top + cardRect.height > window.innerHeight - padding) {
+        top = rect.top - cardRect.height - 20;
+      }
+      
+      let left = rect.left + rect.width / 2 - cardRect.width / 2;
+      // Clamp horizontally
+      left = Math.max(padding, Math.min(left, window.innerWidth - cardRect.width - padding));
+      
+      tutorialCard.style.transform = 'none';
+      tutorialCard.style.top = `${top}px`;
+      tutorialCard.style.left = `${left}px`;
+    } else {
+      // Center if no target
+      tutorialSpotlight.classList.add('hidden');
+      tutorialCard.style.top = '50%';
+      tutorialCard.style.left = '50%';
+      tutorialCard.style.transform = 'translate(-50%, -50%)';
+    }
+  }, 150);
 }
 
 nextTourBtn.onclick = () => {
   if (currentTourStep < TOUR_STEPS.length - 1) {
-    currentTourStep++;
-    showStep();
+    // If we are on landing screen and clicking next, we MUST select finance
+    if (currentTourStep === 0 && !appEl.classList.contains('hidden')) {
+       currentTourStep++;
+       showStep();
+    } else if (currentTourStep === 0) {
+       // Force click finance to progress
+       selectFinanceMode.click();
+    } else {
+       currentTourStep++;
+       showStep();
+    }
   } else {
     endTour(true);
   }
@@ -1798,5 +1837,10 @@ function endTour(permanent) {
   if (permanent) localStorage.setItem('tour_completed', 'true');
 }
 
-// Start tour after initial data loads
-setTimeout(startTour, 2000);
+// Start tour after auth
+setTimeout(() => {
+  const user = auth.currentUser;
+  if (user && !localStorage.getItem('tour_completed')) {
+     startTour();
+  }
+}, 3000);
