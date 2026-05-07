@@ -135,7 +135,24 @@ const reportDate         = document.getElementById("reportDate");
 const generateReportBtn  = document.getElementById("generateReportBtn");
 const reportContent      = document.getElementById("reportContent");
 
+const patientSort        = document.getElementById("patientSort");
+const patientModalTitle  = document.getElementById("patientModalTitle");
+const editPatientId      = document.getElementById("editPatientId");
+const pReferredInput     = document.getElementById("pReferred");
+
+const billNumberInput    = document.getElementById("billNumber");
+
+const editTestModal      = document.getElementById("editTestModal");
+const closeEditTestModal = document.getElementById("closeEditTestModal");
+const editTestId         = document.getElementById("editTestId");
+const editTestPid        = document.getElementById("editTestPid");
+const etNameInput        = document.getElementById("etName");
+const etAmountInput      = document.getElementById("etAmount");
+const etDateInput        = document.getElementById("etDate");
+const saveEditTestBtn    = document.getElementById("saveEditTest");
+
 let currentTestIdForPayment = null; // Track which test is being marked paid
+
 
 // ── Helpers ───────────────────────────────────────────────
 function getTable(base) {
@@ -259,36 +276,63 @@ function showToast(msg, type = "info") {
 
 // ── Patient Modal ─────────────────────────────────────────
 addPatientBtn.onclick = () => {
+  patientModalTitle.textContent = "Add Patient";
+  savePatientBtn.textContent = "Save Patient";
+  editPatientId.value = "";
   patientModal.classList.remove("hidden");
   setTodayIfEmpty("pDate");
+  document.getElementById("pName").value = "";
+  document.getElementById("pAge").value = "";
+  document.getElementById("pGender").value = "Male";
+  pReferredInput.value = "";
   document.getElementById("pName").focus();
 };
 closePatientModal.onclick = () => patientModal.classList.add("hidden");
 
+
 // ── Save Patient ──────────────────────────────────────────
 savePatientBtn.onclick = async () => {
   if (!auth.currentUser) return;
+  const id = editPatientId.value;
   const name = document.getElementById("pName").value.trim();
   const age = document.getElementById("pAge").value.trim();
   const gender = document.getElementById("pGender").value;
   const date = document.getElementById("pDate").value;
+  const referred = pReferredInput.value.trim();
+
   if (!name) return;
   savePatientBtn.disabled = true;
-  savePatientBtn.textContent = "Saving…";
+  savePatientBtn.textContent = id ? "Updating…" : "Saving…";
   try {
-    await (await supabase.from(getTable("patients"))).insert({
+    const payload = {
       name, age, gender,
       admission_date: date,
+      referred_by: referred,
       created_by: auth.currentUser.email
-    });
-    await addLog("Added Patient", name);
-    showToast(`✓ ${name} added`, "success");
+    };
+
+    if (id) {
+      await (await supabase.from(getTable("patients"))).update(id, payload);
+      await addLog("Updated Patient", name);
+      showToast(`✓ ${name} updated`, "success");
+    } else {
+      await (await supabase.from(getTable("patients"))).insert(payload);
+      await addLog("Added Patient", name);
+      showToast(`✓ ${name} added`, "success");
+    }
+
     patientModal.classList.add("hidden");
-    document.getElementById("pName").value = "";
     await loadPatients();
-  } catch (err) { showToast("Error saving", "error"); }
-  finally { savePatientBtn.disabled = false; savePatientBtn.textContent = "Save Patient"; }
+  } catch (err) { 
+    console.error(err);
+    showToast("Error saving", "error"); 
+  }
+  finally { 
+    savePatientBtn.disabled = false; 
+    savePatientBtn.textContent = id ? "Update Patient" : "Save Patient"; 
+  }
 };
+
 
 // ── Load Patients ─────────────────────────────────────────
 async function loadPatients() {
@@ -321,10 +365,33 @@ function renderPatients(patients) {
 }
 
 patientSearch.oninput = (e) => {
-  const q = e.target.value.toLowerCase();
-  const filtered = allPatients.filter(p => p.name.toLowerCase().includes(q));
-  renderPatients(filtered);
+  filterAndRender();
 };
+
+patientSort.onchange = () => {
+  filterAndRender();
+};
+
+function filterAndRender() {
+  const q = patientSearch.value.toLowerCase();
+  const sortVal = patientSort.value;
+  
+  let filtered = allPatients.filter(p => p.name.toLowerCase().includes(q));
+  
+  if (sortVal === "oldest") {
+    filtered.sort((a,b) => new Date(a.admission_date) - new Date(b.admission_date));
+  } else if (sortVal === "name-asc") {
+    filtered.sort((a,b) => a.name.localeCompare(b.name));
+  } else if (sortVal === "name-desc") {
+    filtered.sort((a,b) => b.name.localeCompare(a.name));
+  } else {
+    // Default: newest first
+    filtered.sort((a,b) => new Date(b.admission_date) - new Date(a.admission_date));
+  }
+  
+  renderPatients(filtered);
+}
+
 
 function buildPatientCard(id, p, total) {
   const card = document.createElement("div");
@@ -332,7 +399,13 @@ function buildPatientCard(id, p, total) {
   card.innerHTML = `
     <div class="patient-header" id="hdr-${id}">
       <div class="patient-title-row">
-        <span class="patient-name">${p.name}</span>
+        <div class="patient-name-container">
+          <div class="patient-name-row">
+             <span class="patient-name">${p.name}</span>
+             ${isAdmin ? `<button class="edit-patient-btn" data-id="${id}">✏️</button>` : ""}
+          </div>
+          ${p.referred_by ? `<span class="patient-referred">Ref: ${p.referred_by}</span>` : ""}
+        </div>
         ${total > 0 ? `<span class="patient-total">₹${total}</span>` : ""}
       </div>
       <div class="patient-meta">
@@ -350,6 +423,7 @@ function buildPatientCard(id, p, total) {
         </div>
       </div>
     </div>`;
+
 
   card.querySelector(`#hdr-${id}`).onclick = async (e) => {
     if (e.target.closest('.card-actions')) return;
@@ -387,10 +461,14 @@ async function loadTests(patientId) {
       const isPaid = !!t.paid;
       div.innerHTML = `
         <div class="test-left-info">
-          <span class="test-name">${t.test_name}</span>
+          <div class="test-name-row" style="display:flex; align-items:center; gap:8px;">
+            <span class="test-name">${t.test_name}</span>
+            ${isAdmin ? `<button class="edit-test-btn" data-id="${t.id}" data-pid="${patientId}">✏️</button>` : ""}
+          </div>
           <div class="test-sub-info">
             ${t.amount ? `<span class="test-amount">₹${t.amount}</span>` : ""}
             <span class="test-date">${formatDate(t.test_date)}</span>
+            ${t.bill_number ? `<span class="test-bill">Bill: ${t.bill_number}</span>` : ""}
           </div>
         </div>
         <div class="test-right">
@@ -400,6 +478,7 @@ async function loadTests(patientId) {
           </div>
           ${isAdmin ? `<button class="delete-test-btn" data-id="${t.id}" data-name="${t.test_name}" data-pid="${patientId}">✕</button>` : ""}
         </div>`;
+
       container.appendChild(div);
     });
   } catch (err) { container.innerHTML = `<div class="no-tests">Error</div>`; }
@@ -412,6 +491,8 @@ async function togglePaymentStatus(id, patientId, currentPaid) {
     currentPatientId = patientId;
     paymentDateModal.classList.remove("hidden");
     payDateInput.value = new Date().toISOString().split("T")[0]; // Default today
+    billNumberInput.value = ""; // Reset bill number
+
   } else {
     // Switching back to Pending
     try {
@@ -437,8 +518,10 @@ confirmPaymentBtn.onclick = async () => {
   try {
     await (await supabase.from(getTable("tests"))).update(currentTestIdForPayment, { 
       paid: true, 
-      payment_date: date 
+      payment_date: date,
+      bill_number: billNumberInput.value.trim() || null
     });
+
     
     paymentDateModal.classList.add("hidden");
     await loadTests(currentPatientId);
@@ -486,7 +569,84 @@ document.addEventListener("click", async (e) => {
       await loadTests(pid);
     }
   }
+
+  if (e.target.classList.contains("edit-patient-btn")) {
+    const id = e.target.dataset.id;
+    editPatient(id);
+  }
+  
+  if (e.target.classList.contains("edit-test-btn")) {
+    const { id, pid } = e.target.dataset;
+    editTest(id, pid);
+  }
 });
+
+async function editPatient(id) {
+  const p = allPatients.find(p => p.id == id);
+  if (!p) return;
+  
+  patientModalTitle.textContent = "Edit Patient";
+  savePatientBtn.textContent = "Update Patient";
+  editPatientId.value = id;
+  
+  document.getElementById("pName").value = p.name;
+  document.getElementById("pAge").value = p.age;
+  document.getElementById("pGender").value = p.gender;
+  document.getElementById("pDate").value = p.admission_date;
+  pReferredInput.value = p.referred_by || "";
+  
+  patientModal.classList.remove("hidden");
+}
+
+async function editTest(id, pid) {
+  // Fetch all tests to find the one we need (since allTests might be filtered or not up to date)
+  const data = await (await supabase.from(getTable("tests"))).select();
+  const test = data.find(t => t.id == id);
+  if (!test) return;
+  
+  editTestId.value = id;
+  editTestPid.value = pid;
+  etNameInput.value = test.test_name;
+  etAmountInput.value = test.amount;
+  etDateInput.value = test.test_date;
+  
+  editTestModal.classList.remove("hidden");
+}
+
+saveEditTestBtn.onclick = async () => {
+  const id = editTestId.value;
+  const pid = editTestPid.value;
+  const name = etNameInput.value.trim();
+  const amount = parseFloat(etAmountInput.value) || 0;
+  const date = etDateInput.value;
+  
+  if (!name) return;
+  
+  saveEditTestBtn.disabled = true;
+  saveEditTestBtn.textContent = "Updating…";
+  
+  try {
+    await (await supabase.from(getTable("tests"))).update(id, {
+      test_name: name,
+      amount: amount,
+      test_date: date
+    });
+    
+    await addLog("Updated Test", `${name} (₹${amount})`);
+    showToast("Test updated", "success");
+    editTestModal.classList.add("hidden");
+    await loadPatients();
+    await loadTests(pid);
+  } catch (e) {
+    showToast("Update failed", "error");
+  } finally {
+    saveEditTestBtn.disabled = false;
+    saveEditTestBtn.textContent = "Update Test";
+  }
+};
+
+closeEditTestModal.onclick = () => editTestModal.classList.add("hidden");
+
 
 // ── Test Modal ────────────────────────────────────────────
 document.addEventListener("click", (e) => {

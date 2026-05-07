@@ -70,6 +70,14 @@
     <main>
       <div id="patientSearchContainer" class="search-container">
         <input id="patientSearch" type="text" placeholder="🔍 Search patients by name..." autocomplete="off"/>
+        <div class="sort-container">
+          <select id="patientSort">
+            <option value="default">Sort: Newest First</option>
+            <option value="oldest">Sort: Oldest First</option>
+            <option value="name-asc">Name: A to Z</option>
+            <option value="name-desc">Name: Z to A</option>
+          </select>
+        </div>
       </div>
       <div id="patientList"></div>
       
@@ -136,12 +144,17 @@
   <div id="patientModal" class="modal hidden">
     <div class="modal-content">
       <div class="modal-header">
-        <h2>Add Patient</h2>
+        <h2 id="patientModalTitle">Add Patient</h2>
         <button class="modal-close" id="closePatientModal">✕</button>
       </div>
+      <input type="hidden" id="editPatientId" />
       <div class="form-group">
         <label for="pName">Patient Name</label>
         <input id="pName" type="text" placeholder="e.g. Ramesh Kumar" autocomplete="off"/>
+      </div>
+      <div class="form-group">
+        <label for="pReferred">Referred By (Doctor)</label>
+        <input id="pReferred" type="text" placeholder="e.g. Dr. Singh" autocomplete="off"/>
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -209,7 +222,36 @@
         <label for="payDate">Date Received</label>
         <input id="payDate" type="date"/>
       </div>
+      <div class="form-group">
+        <label for="billNumber">Bill Number (Optional)</label>
+        <input id="billNumber" type="text" placeholder="e.g. BILL-101" autocomplete="off"/>
+      </div>
       <button id="confirmPaymentBtn" class="btn-primary">Confirm & Mark Paid</button>
+    </div>
+  </div>
+
+  <!-- Edit Test Modal -->
+  <div id="editTestModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Edit Test</h2>
+        <button class="modal-close" id="closeEditTestModal">✕</button>
+      </div>
+      <input type="hidden" id="editTestId" />
+      <input type="hidden" id="editTestPid" />
+      <div class="form-group">
+        <label for="etName">Test Name</label>
+        <input id="etName" type="text" placeholder="Test name"/>
+      </div>
+      <div class="form-group">
+        <label for="etAmount">Amount (₹)</label>
+        <input id="etAmount" type="number" placeholder="Price"/>
+      </div>
+      <div class="form-group">
+        <label for="etDate">Test Date</label>
+        <input id="etDate" type="date"/>
+      </div>
+      <button id="saveEditTest" class="btn-primary">Update Test</button>
     </div>
   </div>
 </body>
