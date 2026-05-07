@@ -947,20 +947,17 @@ async function loadLogs() {
   try {
     const data = await (await supabase.from(getTable("logs"))).select();
     logsContent.innerHTML = "";
-    
     const filterDate = logFilterDate.value;
     const filterType = logFilterType.value;
-    
     const filtered = data.filter(l => {
-      if (filterDate && !l.created_at.startsWith(filterDate)) return false;
+
+      if (filterDate && l.created_at && !l.created_at.startsWith(filterDate)) return false;
       if (filterType === "all") return true;
-      
       const actionLower = l.action.toLowerCase();
       const typeLower = filterType.toLowerCase();
-      
-      // Support both new bracketed format [Patient] and old "Added Patient" format
       return actionLower.includes(`[${typeLower}]`) || actionLower.includes(typeLower);
-    });
+    }).sort((a, b) => (b.id || 0) - (a.id || 0));
+
 
     if (filtered.length === 0) {
       logsContent.innerHTML = `<div class="empty-state">No matching logs found.</div>`;
