@@ -1727,7 +1727,7 @@ function showStep() {
     if (step.tab === 'reports') reportsTab.click();
   }
 
-  tourStepIndicator.textContent = \ / \\;
+  tourStepIndicator.textContent = `${currentTourStep + 1} / ${TOUR_STEPS.length}`;
   tourTitle.textContent = step.title;
   tourText.textContent = step.text;
 
@@ -1740,10 +1740,10 @@ function showStep() {
       if (el) {
         const rect = el.getBoundingClientRect();
         const pad = 10;
-        tutorialSpotlight.style.width = \\px\;
-        tutorialSpotlight.style.height = \\px\;
-        tutorialSpotlight.style.left = \\px\;
-        tutorialSpotlight.style.top = \\px\;
+        tutorialSpotlight.style.width = `${rect.width + pad * 2}px`;
+        tutorialSpotlight.style.height = `${rect.height + pad * 2}px`;
+        tutorialSpotlight.style.left = `${rect.left - pad}px`;
+        tutorialSpotlight.style.top = `${rect.top - pad}px`;
         tutorialSpotlight.classList.remove('hidden');
 
         // Position card
@@ -1753,8 +1753,8 @@ function showStep() {
         let left = rect.left + rect.width / 2 - cardRect.width / 2;
         left = Math.max(20, Math.min(left, window.innerWidth - cardRect.width - 20));
 
-        tutorialCard.style.top = \\px\;
-        tutorialCard.style.left = \\px\;
+        tutorialCard.style.top = `${top}px`;
+        tutorialCard.style.left = `${left}px`;
         tutorialCard.style.margin = '0';
       } else {
         resetToCenter();
@@ -1800,4 +1800,3 @@ function endTour(permanent) {
 
 // Start tour after initial data loads
 setTimeout(startTour, 2000);
-
