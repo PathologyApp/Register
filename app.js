@@ -149,7 +149,9 @@ const editTestPid        = document.getElementById("editTestPid");
 const etNameInput        = document.getElementById("etName");
 const etAmountInput      = document.getElementById("etAmount");
 const etDateInput        = document.getElementById("etDate");
+const etBillNumberInput  = document.getElementById("etBillNumber");
 const saveEditTestBtn    = document.getElementById("saveEditTest");
+
 
 let currentTestIdForPayment = null; // Track which test is being marked paid
 
@@ -340,11 +342,12 @@ async function loadPatients() {
   try {
     allPatients = await (await supabase.from(getTable("patients"))).select();
     allTests = await (await supabase.from(getTable("tests"))).select();
-    renderPatients(allPatients);
+    filterAndRender();
   } catch (err) {
     patientList.innerHTML = `<div class="empty-state">Error loading data.</div>`;
   }
 }
+
 
 function renderPatients(patients) {
   patientList.innerHTML = "";
@@ -353,16 +356,14 @@ function renderPatients(patients) {
     return;
   }
   
-  // Sort patients by date (newest first)
-  const sorted = [...patients].sort((a,b) => new Date(b.admission_date) - new Date(a.admission_date));
-
-  sorted.forEach(p => {
+  patients.forEach(p => {
     const pTests = allTests.filter(t => t.patient_id == p.id);
     const total = pTests.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
     const card = buildPatientCard(p.id, p, total);
     patientList.appendChild(card);
   });
 }
+
 
 patientSearch.oninput = (e) => {
   filterAndRender();
@@ -373,17 +374,17 @@ patientSort.onchange = () => {
 };
 
 function filterAndRender() {
-  const q = patientSearch.value.toLowerCase();
-  const sortVal = patientSort.value;
+  const q = (patientSearch.value || "").toLowerCase();
+  const sortVal = patientSort ? patientSort.value : "default";
   
-  let filtered = allPatients.filter(p => p.name.toLowerCase().includes(q));
+  let filtered = allPatients.filter(p => (p.name || "").toLowerCase().includes(q));
   
   if (sortVal === "oldest") {
     filtered.sort((a,b) => new Date(a.admission_date) - new Date(b.admission_date));
   } else if (sortVal === "name-asc") {
-    filtered.sort((a,b) => a.name.localeCompare(b.name));
+    filtered.sort((a,b) => (a.name || "").localeCompare(b.name || ""));
   } else if (sortVal === "name-desc") {
-    filtered.sort((a,b) => b.name.localeCompare(a.name));
+    filtered.sort((a,b) => (b.name || "").localeCompare(a.name || ""));
   } else {
     // Default: newest first
     filtered.sort((a,b) => new Date(b.admission_date) - new Date(a.admission_date));
@@ -391,6 +392,7 @@ function filterAndRender() {
   
   renderPatients(filtered);
 }
+
 
 
 function buildPatientCard(id, p, total) {
@@ -427,7 +429,9 @@ function buildPatientCard(id, p, total) {
 
   card.querySelector(`#hdr-${id}`).onclick = async (e) => {
     if (e.target.closest('.card-actions')) return;
+    if (e.target.closest('.edit-patient-btn')) return;
     const body = document.getElementById(`body-${id}`);
+
     const chev = document.getElementById(`chev-${id}`);
     const isOpen = !body.classList.contains("hidden");
     body.classList.toggle("hidden");
@@ -609,6 +613,7 @@ async function editTest(id, pid) {
   etNameInput.value = test.test_name;
   etAmountInput.value = test.amount;
   etDateInput.value = test.test_date;
+  etBillNumberInput.value = test.bill_number || "";
   
   editTestModal.classList.remove("hidden");
 }
@@ -619,6 +624,7 @@ saveEditTestBtn.onclick = async () => {
   const name = etNameInput.value.trim();
   const amount = parseFloat(etAmountInput.value) || 0;
   const date = etDateInput.value;
+  const billNumber = etBillNumberInput.value.trim();
   
   if (!name) return;
   
@@ -629,8 +635,10 @@ saveEditTestBtn.onclick = async () => {
     await (await supabase.from(getTable("tests"))).update(id, {
       test_name: name,
       amount: amount,
-      test_date: date
+      test_date: date,
+      bill_number: billNumber || null
     });
+
     
     await addLog("Updated Test", `${name} (₹${amount})`);
     showToast("Test updated", "success");
