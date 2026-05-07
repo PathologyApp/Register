@@ -432,6 +432,7 @@ async function loadPatients() {
   patientList.innerHTML = `<div class="loading-state">Loading patients…</div>`;
   try {
     allPatients = await (await supabase.from(getTable("patients"))).select();
+    updateDoctorSuggestions(allPatients);
     allTests = await (await supabase.from(getTable("tests"))).select();
     currentPage = 1; // Reset to first page on reload
     filterAndRender();
@@ -467,6 +468,13 @@ itemsPerPageSelect.onchange = () => {
   filterAndRender();
 };
 
+
+function updateDoctorSuggestions(patients) {
+  const doctorList = document.getElementById("doctorList");
+  if (!doctorList) return;
+  const uniqueDoctors = [...new Set(patients.map(p => p.referred_by).filter(Boolean))].sort();
+  doctorList.innerHTML = uniqueDoctors.map(name => `<option value="${name}">`).join("");
+}
 
 function filterAndRender() {
   const q = (patientSearch.value || "").toLowerCase();
@@ -872,13 +880,24 @@ document.addEventListener("click", (e) => {
 });
 
 function renderTestDropdown(query) {
-  const q = query.toLowerCase();
+  const q = query.toLowerCase().trim();
   const filtered = TEST_LIST.filter(t => t.name.toLowerCase().includes(q));
   
   testDropdown.innerHTML = "";
-  if (filtered.length === 0) {
-    testDropdown.classList.add("hidden");
-    return;
+  
+  // Show "Add New" if query is not empty and not an exact match
+  if (q && !filtered.some(t => t.name.toLowerCase() === q)) {
+    const newItem = document.createElement("div");
+    newItem.className = "dropdown-item new-item";
+    newItem.style.borderTop = filtered.length > 0 ? "1px dashed #cbd5e1" : "none";
+    newItem.innerHTML = `<span>➕ Add New: <strong>${query}</strong></span>`;
+    newItem.onclick = () => {
+      selectedTests.push({ name: query, price: 0 });
+      renderSelectedTests();
+      tNameInput.value = "";
+      testDropdown.classList.add("hidden");
+    };
+    testDropdown.appendChild(newItem);
   }
 
   filtered.forEach(t => {
@@ -886,7 +905,6 @@ function renderTestDropdown(query) {
     item.className = "dropdown-item";
     item.innerHTML = `<span>${t.name}</span><span class="item-price">₹${t.price}</span>`;
     item.onclick = () => {
-      // Add to selected list instead of just filling input
       if (selectedTests.some(st => st.name === t.name)) {
         showToast("Test already added", "info");
       } else {
@@ -898,7 +916,12 @@ function renderTestDropdown(query) {
     };
     testDropdown.appendChild(item);
   });
-  testDropdown.classList.remove("hidden");
+
+  if (testDropdown.children.length === 0) {
+    testDropdown.classList.add("hidden");
+  } else {
+    testDropdown.classList.remove("hidden");
+  }
 }
 
 function renderSelectedTests() {
