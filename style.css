@@ -1122,7 +1122,63 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
 .pending-test-name { font-weight: 500; }
 .pending-test-price { font-weight: 600; color: var(--text); }
 
-/* ── Toast ────────────────────────────────────────────── */
+/* ── Sub Tabs (Payments) ─────────────────────────────── */
+.sub-tabs {
+  display: flex;
+  background: white;
+  padding: 5px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  margin-bottom: 25px;
+  gap: 5px;
+}
+
+.sub-tab {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-2);
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.sub-tab.active {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+.payment-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.payment-card-header:hover {
+  background: var(--surface2);
+}
+
+.payment-card-header .chevron {
+  font-size: 12px;
+  color: var(--text-3);
+  transition: transform 0.3s;
+}
+
+.payment-card-header.open .chevron {
+  transform: rotate(180deg);
+}
+
+.payment-card .pending-tests-list {
+  padding: 0 15px 15px;
+  border-top: none;
+}
 .toast {
   position: fixed;
   bottom: 90px;

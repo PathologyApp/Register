@@ -101,14 +101,19 @@
           <div id="totalPendingGlobal" class="summary-card pending">Total Pending: ₹0</div>
           <div id="totalPaidGlobal" class="summary-card paid">Collected: ₹0</div>
         </div>
+        <div class="sub-tabs">
+          <button id="pendingSubTab" class="sub-tab active">⏳ Pending</button>
+          <button id="paidSubTab" class="sub-tab">✅ Collected</button>
+        </div>
 
-        <div class="payment-section">
+        <div id="pendingSection" class="payment-section">
           <h3>⏳ Pending Payments</h3>
           <div id="paymentList" class="payment-list"></div>
           <div id="pendingPagination" class="pagination-container"></div>
         </div>
+        </div>
 
-        <div class="payment-section" style="margin-top: 40px;">
+        <div id="paidSection" class="payment-section hidden">
           <h3>✅ Recent Collections</h3>
           <div id="paidList" class="payment-list"></div>
           <div id="paidPagination" class="pagination-container"></div>

@@ -181,6 +181,11 @@ const logFilterDate      = document.getElementById("logFilterDate");
 const logFilterType      = document.getElementById("logFilterType");
 const logsContent        = document.getElementById("logsContent");
 
+const pendingSubTab      = document.getElementById("pendingSubTab");
+const paidSubTab         = document.getElementById("paidSubTab");
+const pendingSection     = document.getElementById("pendingSection");
+const paidSection        = document.getElementById("paidSection");
+
 let currentTestIdForPayment = null; 
 
 
@@ -1378,23 +1383,42 @@ async function loadPayments() {
     pendingPatients.sort((a,b) => b.total - a.total);
     paidPatients.sort((a,b) => b.total - a.total);
 
-    // Paginate Pending
-    const startPend = (currentPendingPage - 1) * paymentsPerPage;
-    const paginatedPend = pendingPatients.slice(startPend, startPend + paymentsPerPage);
-    renderPaymentList(paymentList, paginatedPend, "pending");
-    renderPaymentPagination("pending", pendingPatients.length);
-
-    // Paginate Paid
-    const startPaid = (currentPaidPage - 1) * paymentsPerPage;
-    const paginatedPaid = paidPatients.slice(startPaid, startPaid + paymentsPerPage);
-    renderPaymentList(paidList, paginatedPaid, "paid");
-    renderPaymentPagination("paid", paidPatients.length);
+    // Initial render
+    refreshPaymentDisplay(pendingPatients, paidPatients);
 
   } catch (e) {
     console.error(e);
     paymentList.innerHTML = `<div class="empty-state">Error loading payments.</div>`;
   }
 }
+
+function refreshPaymentDisplay(pendingPatients, paidPatients) {
+  // Paginate Pending
+  const startPend = (currentPendingPage - 1) * paymentsPerPage;
+  const paginatedPend = pendingPatients.slice(startPend, startPend + paymentsPerPage);
+  renderPaymentList(paymentList, paginatedPend, "pending");
+  renderPaymentPagination("pending", pendingPatients.length);
+
+  // Paginate Paid
+  const startPaid = (currentPaidPage - 1) * paymentsPerPage;
+  const paginatedPaid = paidPatients.slice(startPaid, startPaid + paymentsPerPage);
+  renderPaymentList(paidList, paginatedPaid, "paid");
+  renderPaymentPagination("paid", paidPatients.length);
+}
+
+pendingSubTab.onclick = () => {
+  pendingSubTab.classList.add("active");
+  paidSubTab.classList.remove("active");
+  pendingSection.classList.remove("hidden");
+  paidSection.classList.add("hidden");
+};
+
+paidSubTab.onclick = () => {
+  paidSubTab.classList.add("active");
+  pendingSubTab.classList.remove("active");
+  paidSection.classList.remove("hidden");
+  pendingSection.classList.add("hidden");
+};
 
 function renderPaymentList(container, data, mode) {
   container.innerHTML = "";
@@ -1415,9 +1439,12 @@ function renderPaymentList(container, data, mode) {
           <span class="payment-patient-name">${item.name}</span>
           <span class="payment-patient-date">${mode === 'pending' ? 'Joined ' + formatDate(item.admission_date) : 'Total Collection'}</span>
         </div>
-        <div class="payment-amount-due">₹${item.total}</div>
+        <div style="display:flex; align-items:center; gap:12px">
+          <div class="payment-amount-due">₹${item.total}</div>
+          <span class="chevron">▾</span>
+        </div>
       </div>
-      <div class="pending-tests-list">
+      <div class="pending-tests-list hidden">
         ${tests.map(t => `
           <div class="pending-test-item">
             <div style="display:flex; flex-direction:column;">
@@ -1429,6 +1456,15 @@ function renderPaymentList(container, data, mode) {
         `).join('')}
       </div>
     `;
+
+    const header = card.querySelector('.payment-card-header');
+    const list = card.querySelector('.pending-tests-list');
+    header.onclick = () => {
+      const isOpen = !list.classList.contains('hidden');
+      list.classList.toggle('hidden');
+      header.classList.toggle('open', !isOpen);
+    };
+
     container.appendChild(card);
   });
 }
