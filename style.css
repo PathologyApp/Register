@@ -27,6 +27,7 @@
   --shadow-lg: 0 8px 32px rgba(79,110,247,0.18);
   --radius: 14px;
   --radius-sm: 8px;
+  --radius-xs: 4px;
 }
 
 body {
@@ -420,6 +421,18 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
 .patient-name-container {
   display: flex;
   flex-direction: column;
+}
+
+.patient-id-badge {
+  font-size: 10px;
+  font-weight: 800;
+  background: var(--text);
+  color: white;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  margin-right: 8px;
+  opacity: 0.8;
+  vertical-align: middle;
 }
 
 .patient-name { font-weight: 600; font-size: 15px; color: var(--text); }

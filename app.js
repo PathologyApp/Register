@@ -475,9 +475,11 @@ function filterAndRender() {
   
   // 1. Filter
   let filtered = allPatients.filter(p => {
+    const qLower = q.replace('#', '');
     const matchesName = (p.name || "").toLowerCase().includes(q);
+    const matchesId = p.id.toString() === qLower || p.id.toString().includes(qLower && q.startsWith('#') ? qLower : 'NEVER_MATCH');
     const matchesDate = !d || p.admission_date === d;
-    return matchesName && matchesDate;
+    return (matchesName || (q.startsWith('#') && matchesId)) && matchesDate;
   });
   
   // 2. Sort
@@ -533,6 +535,7 @@ function buildPatientCard(id, p, total) {
       <div class="patient-title-row">
         <div class="patient-name-container">
           <div class="patient-name-row">
+             <span class="patient-id-badge">#${p.id}</span>
              <span class="patient-name">${p.name}</span>
              ${isAdmin ? `<button class="edit-patient-btn" data-id="${id}">✏️</button>` : ""}
           </div>
@@ -1535,6 +1538,10 @@ async function generateInvoice(patientId) {
       </div>
 
       <div class="patient-info-block">
+        <div class="info-item">
+          <label>Patient ID / SN</label>
+          <span>#${p.id}</span>
+        </div>
         <div class="info-item">
           <label>Patient Name</label>
           <span>${p.name}</span>
