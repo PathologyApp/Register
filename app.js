@@ -1056,6 +1056,7 @@ logFilterType.onchange = () => loadLogs();
 patientsTab.onclick = () => {
   patientList.classList.remove("hidden");
   patientSearchCont.classList.remove("hidden");
+  paginationControls.classList.remove("hidden");
   paymentView.classList.add("hidden");
   logsView.classList.add("hidden");
   reportsView.classList.add("hidden");
@@ -1067,6 +1068,7 @@ patientsTab.onclick = () => {
 paymentsTab.onclick = async () => {
   patientList.classList.add("hidden");
   patientSearchCont.classList.add("hidden");
+  paginationControls.classList.add("hidden");
   paymentView.classList.remove("hidden");
   logsView.classList.add("hidden");
   reportsView.classList.add("hidden");
@@ -1079,6 +1081,7 @@ paymentsTab.onclick = async () => {
 logsTab.onclick = async () => {
   patientList.classList.add("hidden");
   patientSearchCont.classList.add("hidden");
+  paginationControls.classList.add("hidden");
   paymentView.classList.add("hidden");
   logsView.classList.remove("hidden");
   reportsView.classList.add("hidden");
@@ -1092,6 +1095,7 @@ logsTab.onclick = async () => {
 reportsTab.onclick = () => {
   patientList.classList.add("hidden");
   patientSearchCont.classList.add("hidden");
+  paginationControls.classList.add("hidden");
   paymentView.classList.add("hidden");
   logsView.classList.add("hidden");
   reportsView.classList.remove("hidden");
@@ -1100,6 +1104,7 @@ reportsTab.onclick = () => {
   paymentsTab.classList.remove("active");
   logsTab.classList.remove("active");
 };
+
 
 generateReportBtn.onclick = () => generateReport();
 
