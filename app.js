@@ -1727,7 +1727,7 @@ function showStep() {
     if (step.tab === 'reports') reportsTab.click();
   }
 
-  tourStepIndicator.textContent = \\ / \\;
+  tourStepIndicator.textContent = \ / \\;
   tourTitle.textContent = step.title;
   tourText.textContent = step.text;
 
