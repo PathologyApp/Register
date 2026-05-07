@@ -1351,29 +1351,92 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
 
 /* ── Phase 2 Reports & Exports ─────────────────────────── */
 .reports-controls {
+  background: white;
+  padding: 25px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 30px;
+  border: 1px solid var(--border);
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 25px;
+  flex-direction: column;
+  gap: 25px;
+}
+
+.report-form {
+  display: flex;
+  align-items: flex-end;
   flex-wrap: wrap;
   gap: 20px;
-  background: var(--surface2);
-  padding: 15px;
-  border-radius: var(--radius-md);
 }
 
-.report-filters {
+.control-group {
   display: flex;
-  gap: 12px;
-  align-items: center;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 150px;
 }
 
-.report-filters select, .report-filters input {
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: white;
+.control-group label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-3);
+  letter-spacing: 0.5px;
+}
+
+.selector-row {
+  display: flex;
+  gap: 8px;
+}
+
+.control-group select, .control-group input {
+  padding: 10px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
   font-size: 14px;
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.control-group select:focus, .control-group input:focus {
+  border-color: var(--primary);
+}
+
+#generateReportBtn {
+  height: 44px;
+  padding: 0 30px;
+  border-radius: 10px;
+  font-weight: 700;
+}
+
+.report-actions {
+  border-top: 1px solid var(--surface2);
+  padding-top: 20px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+#exportCSVBtn {
+  background: #f8fafc;
+  color: #64748b;
+  border: 1.5px solid #e2e8f0;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+#exportCSVBtn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: var(--text);
 }
 
 .report-summary-grid {
@@ -1646,43 +1709,34 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
 }
 
 /* -- Mobile Responsive Overrides ----------------------- */
+/* -- Mobile Responsive Overrides ----------------------- */
 @media (max-width: 600px) {
-  .report-filters {
-    flex-direction: column !important;
-    align-items: stretch !important;
-    width: 100% !important;
-    gap: 10px !important;
+  .report-form {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
   }
 
-  .report-filters select, 
-  .report-filters input,
+  .control-group {
+    width: 100%;
+    min-width: unset;
+  }
+
+  .selector-row {
+    width: 100%;
+  }
+
+  .selector-row select {
+    flex: 1;
+  }
+
   #generateReportBtn {
-    width: 100% !important;
-    margin-bottom: 5px !important;
-  }
-
-  #monthlySelectors {
-    display: flex !important;
-    gap: 10px !important;
-    width: 100% !important;
-  }
-
-  #monthlySelectors select {
-    flex: 1 !important;
+    width: 100%;
+    margin-top: 10px;
   }
 
   .reports-controls {
-    flex-direction: column !important;
-    align-items: stretch !important;
-  }
-
-  .export-actions {
-    margin-top: 15px !important;
-    width: 100% !important;
-  }
-  
-  .export-actions button {
-    width: 100% !important;
+    padding: 15px;
   }
 
   .summary-card .value {
@@ -1691,10 +1745,5 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
 
   .report-table th, .report-table td {
     padding: 10px 8px !important;
-  }
-  
-  .top-test-name {
-    width: 100px !important;
-    font-size: 12px !important;
   }
 }

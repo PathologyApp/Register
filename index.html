@@ -112,7 +112,6 @@
           <div id="pendingPagination" class="pagination-container"></div>
         </div>
 
-
         <div id="paidSection" class="payment-section hidden">
           <h3>✅ Recent Collections</h3>
           <div id="paidList" class="payment-list"></div>
@@ -123,23 +122,32 @@
       <!-- Reports View -->
       <div id="reportsView" class="hidden">
         <div class="reports-controls">
-          <div class="report-filters">
-            <select id="reportType">
-              <option value="monthly">Monthly Summary</option>
-              <option value="daily">Daily Detail</option>
-            </select>
-
-
-            <div id="monthlySelectors">
-              <select id="reportMonth"></select>
-              <select id="reportYear"></select>
+          <div class="report-form">
+            <div class="control-group">
+              <label>Report Type</label>
+              <select id="reportType">
+                <option value="monthly">Monthly Summary</option>
+                <option value="daily">Daily Detail</option>
+              </select>
             </div>
-            <div id="dailySelectors" class="hidden">
+
+            <div id="monthlySelectors" class="control-group">
+              <label>Select Period</label>
+              <div class="selector-row">
+                <select id="reportMonth"></select>
+                <select id="reportYear"></select>
+              </div>
+            </div>
+
+            <div id="dailySelectors" class="control-group hidden">
+              <label>Select Date</label>
               <input type="date" id="reportDate"/>
             </div>
+
             <button id="generateReportBtn" class="btn-primary">View Report</button>
           </div>
-          <div class="export-actions">
+
+          <div class="report-actions">
             <button id="exportCSVBtn" class="btn-secondary">📥 Export to CSV</button>
           </div>
         </div>
