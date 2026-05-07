@@ -1167,10 +1167,20 @@ function generateReport() {
     else group.pending += amt;
   });
 
-  const topTests = Object.entries(testCounts)
-    .sort((a,b) => b[1] - a[1])
-    .slice(0, 5);
-  const maxCount = topTests[0]?.[1] || 1;
+  const allSortedTests = Object.entries(testCounts).sort((a,b) => b[1] - a[1]);
+  const top5 = allSortedTests.slice(0, 5);
+  const others = allSortedTests.slice(5);
+  const maxCount = allSortedTests[0]?.[1] || 1;
+
+  const renderTestRow = ([name, count]) => `
+    <div class="top-test-item">
+      <span class="top-test-name">${name}</span>
+      <div class="top-test-bar-cont">
+        <div class="top-test-bar" style="width: ${(count/maxCount)*100}%"></div>
+      </div>
+      <span class="top-test-count">${count}</span>
+    </div>
+  `;
 
   let html = `
     <div class="report-summary-grid">
@@ -1194,15 +1204,18 @@ function generateReport() {
 
     <div class="top-tests-section">
       <h3>Most Common Tests</h3>
-      ${topTests.map(([name, count]) => `
-        <div class="top-test-item">
-          <span class="top-test-name">${name}</span>
-          <div class="top-test-bar-cont">
-            <div class="top-test-bar" style="width: ${(count/maxCount)*100}%"></div>
-          </div>
-          <span class="top-test-count">${count}</span>
+      ${top5.map(renderTestRow).join('')}
+      
+      ${others.length > 0 ? `
+        <div id="extraTests" class="hidden">
+          ${others.map(renderTestRow).join('')}
         </div>
-      `).join('')}
+        <button id="toggleTestsBtn" class="expand-reports-btn">
+          <span>──────────</span>
+          <span class="expand-icon">⌵</span>
+          <span>──────────</span>
+        </button>
+      ` : ''}
     </div>
 
     <div class="report-table-container" style="margin-top: 40px;">
@@ -1235,6 +1248,20 @@ function generateReport() {
 
   html += `</tbody></table></div>`;
   reportContent.innerHTML = html;
+
+  // Add Toggle Listener
+  const toggleBtn = document.getElementById("toggleTestsBtn");
+  const extraTests = document.getElementById("extraTests");
+  if (toggleBtn && extraTests) {
+    toggleBtn.onclick = () => {
+      const isHidden = extraTests.classList.contains("hidden");
+      extraTests.classList.toggle("hidden");
+      toggleBtn.classList.toggle("open");
+      toggleBtn.innerHTML = isHidden 
+        ? `<span>──────────</span> <span class="expand-icon" style="transform:rotate(180deg)">⌵</span> <span>──────────</span>` 
+        : `<span>──────────</span> <span class="expand-icon">⌵</span> <span>──────────</span>`;
+    };
+  }
 }
 
 exportCSVBtn.onclick = () => exportToCSV();

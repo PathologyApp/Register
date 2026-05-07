@@ -1380,6 +1380,37 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
   min-width: 40px;
 }
 
+.expand-reports-btn {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text-3);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 15px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  transition: color 0.2s;
+  user-select: none;
+}
+
+.expand-reports-btn:hover {
+  color: var(--primary);
+}
+
+.expand-reports-btn .expand-icon {
+  font-size: 18px;
+  transition: transform 0.3s;
+}
+
+.expand-reports-btn.open .expand-icon {
+  transform: rotate(180deg);
+}
+
+
 /* ── Phase 3 Invoicing & Print ───────────────────────── */
 .invoice-container {
   display: none;
