@@ -276,8 +276,7 @@ async function enterApp() {
   if (!user) return;
 
   keyScreen.classList.add("hidden");
-  landingScreen.classList.remove("hidden");
-  appEl.classList.add("hidden");
+  appEl.classList.remove("hidden");
   userInfo.textContent = user.displayName || user.email.split("@")[0];
   
   // Force admin/delete permissions for everyone with the key
