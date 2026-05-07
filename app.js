@@ -901,13 +901,26 @@ document.addEventListener("click", (e) => {
 
 function renderTestDropdown(query) {
   const q = query.toLowerCase().trim();
+  const normalizedQ = q.replace(/[^a-z0-9]/g, ""); // Remove dots, spaces, etc.
+  
   const combined = [...TEST_LIST, ...DYNAMIC_TEST_LIST];
-  const filtered = combined.filter(t => t.name.toLowerCase().includes(q));
+  
+  // Filter using normalized matching
+  const filtered = combined.filter(t => {
+    const nameLower = t.name.toLowerCase();
+    const normalizedName = nameLower.replace(/[^a-z0-9]/g, "");
+    return nameLower.includes(q) || (normalizedQ && normalizedName.includes(normalizedQ));
+  });
   
   testDropdown.innerHTML = "";
   
-  // Show "Add New" if query is not empty and not an exact match in combined list
-  if (q && !filtered.some(t => t.name.toLowerCase() === q)) {
+  // Show "Add New" if query is not empty and not an exact/normalized match
+  const hasExactMatch = filtered.some(t => {
+    const norm = t.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+    return t.name.toLowerCase() === q || norm === normalizedQ;
+  });
+
+  if (q && !hasExactMatch) {
     const newItem = document.createElement("div");
     newItem.className = "dropdown-item new-item";
     newItem.style.borderTop = filtered.length > 0 ? "1px dashed #cbd5e1" : "none";
