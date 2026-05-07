@@ -79,7 +79,10 @@ const TEST_LIST = [
   { name: "C.S.F. Exam", price: 1000 },
   { name: "T.S.H. only", price: 400 },
   { name: "T₃ T₄ T.S.H.", price: 500 },
-  { name: "HBA1C", price: 600 }
+  { name: "HBA1C", price: 600 },
+  { name: "A.B.G", price: 1000 },
+  { name: "Histopath (Small Specimen)", price: 1000 },
+  { name: "Histopath (Large Specimen)", price: 2700 }
 ];
 
 // ── DOM refs ──────────────────────────────────────────────
