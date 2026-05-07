@@ -1449,3 +1449,40 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
   border-top: 1px solid var(--border);
   padding-top: 15px;
 }
+
+/* ── Invoice Container (Print Only) ────────────────────── */
+.invoice-container {
+  display: none;
+  background: white;
+  padding: 40px;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+@media print {
+  body {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  body > *:not(.invoice-container) {
+    display: none !important;
+  }
+  
+  .invoice-container {
+    display: block !important;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Reset colors for printing */
+  .invoice-header h1 { color: black !important; }
+  .total-value { color: black !important; }
+  
+  @page {
+    size: auto;
+    margin: 15mm 10mm;
+  }
+}
