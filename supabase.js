@@ -21,7 +21,8 @@ export const supabase = {
         return await res.json();
       },
       async select(query = "*") {
-        const res = await fetch(`${baseUrl}?select=${query}&order=created_at.desc`, {
+        const res = await fetch(`${baseUrl}?select=${query}`, {
+
           method: "GET",
           headers
         });
