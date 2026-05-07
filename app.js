@@ -91,6 +91,8 @@ const TEST_LIST = [
   { name: "Histopath (Large Specimen)", price: 2700 }
 ];
 
+let DYNAMIC_TEST_LIST = [];
+
 // ── DOM refs ──────────────────────────────────────────────
 const authScreen        = document.getElementById("authScreen");
 const keyScreen         = document.getElementById("keyScreen");
@@ -434,6 +436,7 @@ async function loadPatients() {
     allPatients = await (await supabase.from(getTable("patients"))).select();
     updateDoctorSuggestions(allPatients);
     allTests = await (await supabase.from(getTable("tests"))).select();
+    updateTestSuggestions(allTests);
     currentPage = 1; // Reset to first page on reload
     filterAndRender();
   } catch (err) {
@@ -474,6 +477,23 @@ function updateDoctorSuggestions(patients) {
   if (!doctorList) return;
   const uniqueDoctors = [...new Set(patients.map(p => p.referred_by).filter(Boolean))].sort();
   doctorList.innerHTML = uniqueDoctors.map(name => `<option value="${name}">`).join("");
+}
+
+function updateTestSuggestions(tests) {
+  // Collect unique tests that are NOT already in the static TEST_LIST
+  const staticNames = new Set(TEST_LIST.map(t => t.name.toLowerCase()));
+  const learned = [];
+  const seen = new Set();
+
+  tests.forEach(t => {
+    const nameLower = t.test_name.toLowerCase();
+    if (!staticNames.has(nameLower) && !seen.has(nameLower)) {
+      learned.push({ name: t.test_name, price: t.amount || 0 });
+      seen.add(nameLower);
+    }
+  });
+
+  DYNAMIC_TEST_LIST = learned.sort((a,b) => a.name.localeCompare(b.name));
 }
 
 function filterAndRender() {
@@ -881,11 +901,12 @@ document.addEventListener("click", (e) => {
 
 function renderTestDropdown(query) {
   const q = query.toLowerCase().trim();
-  const filtered = TEST_LIST.filter(t => t.name.toLowerCase().includes(q));
+  const combined = [...TEST_LIST, ...DYNAMIC_TEST_LIST];
+  const filtered = combined.filter(t => t.name.toLowerCase().includes(q));
   
   testDropdown.innerHTML = "";
   
-  // Show "Add New" if query is not empty and not an exact match
+  // Show "Add New" if query is not empty and not an exact match in combined list
   if (q && !filtered.some(t => t.name.toLowerCase() === q)) {
     const newItem = document.createElement("div");
     newItem.className = "dropdown-item new-item";
