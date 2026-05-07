@@ -1663,7 +1663,7 @@ async function generateInvoice(patientId) {
 const TOUR_STEPS = [
   {
     title: 'Welcome!',
-    text: 'Let\\'s take a quick 1-minute tour to see what\\'s new in your Pathology Register.',
+    text: 'Let\'s take a quick 1-minute tour to see what\'s new in your Pathology Register.',
     target: null
   },
   {
