@@ -30,10 +30,13 @@ export const supabase = {
       async delete(id, column = "id") {
         const res = await fetch(`${baseUrl}?${column}=eq.${id}`, {
           method: "DELETE",
-          headers
+          headers: { ...headers, "Prefer": "return=minimal" }
         });
-        return res.ok;
+        if (!res.ok) throw new Error("Delete failed");
+        return true;
       },
+
+
 
       async update(id, data) {
         const res = await fetch(`${baseUrl}?id=eq.${id}`, {
