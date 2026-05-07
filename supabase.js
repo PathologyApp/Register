@@ -22,13 +22,13 @@ export const supabase = {
       },
       async select(query = "*") {
         const res = await fetch(`${baseUrl}?select=${query}`, {
-
           method: "GET",
           headers
         });
         return await res.json();
       },
       async delete(id, column = "id") {
+        if (!id || id === "undefined") throw new Error("Invalid ID for deletion");
         const res = await fetch(`${baseUrl}?${column}=eq.${id}`, {
           method: "DELETE",
           headers: { ...headers, "Prefer": "return=minimal" }
@@ -36,6 +36,7 @@ export const supabase = {
         if (!res.ok) throw new Error("Delete failed");
         return true;
       },
+
 
 
 

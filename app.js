@@ -568,11 +568,13 @@ async function loadTests(patientId) {
       const div = document.createElement("div");
       div.className = "test-item";
       const isPaid = !!t.paid;
+      const tId = t.id || t.ID || t.test_id; // Robust ID detection
+
       div.innerHTML = `
         <div class="test-left-info">
           <div class="test-name-row" style="display:flex; align-items:center; gap:8px;">
             <span class="test-name">${t.test_name}</span>
-            ${isAdmin ? `<button class="edit-test-btn" data-id="${t.id}" data-pid="${patientId}">✏️</button>` : ""}
+            ${isAdmin ? `<button class="edit-test-btn" data-id="${tId}" data-pid="${patientId}">✏️</button>` : ""}
           </div>
           <div class="test-sub-info">
             ${t.amount ? `<span class="test-amount">₹${t.amount}</span>` : ""}
@@ -581,11 +583,11 @@ async function loadTests(patientId) {
           </div>
         </div>
         <div class="test-right">
-          <div class="payment-toggle ${isPaid ? 'paid' : 'pending'}" data-id="${t.id}" data-pid="${patientId}" data-paid="${isPaid}">
+          <div class="payment-toggle ${isPaid ? 'paid' : 'pending'}" data-id="${tId}" data-pid="${patientId}" data-paid="${isPaid}">
             <span class="payment-label">${isPaid ? 'Paid' : 'Pending'}</span>
             <div class="toggle-switch"></div>
           </div>
-          ${isAdmin ? `<button class="delete-test-btn" data-id="${t.id}" data-name="${t.test_name}" data-pid="${patientId}">✕</button>` : ""}
+          ${isAdmin ? `<button class="delete-test-btn" data-id="${tId}" data-name="${t.test_name}" data-pid="${patientId}">✕</button>` : ""}
         </div>`;
 
       container.appendChild(div);
@@ -602,6 +604,11 @@ async function loadTests(patientId) {
     container.querySelectorAll('.delete-test-btn').forEach(el => {
       el.onclick = () => {
         const { id, name, pid } = el.dataset;
+        if (!id || id === 'undefined') {
+           showToast("Could not find ID for deletion", "error");
+           console.error("Missing ID for test:", name);
+           return;
+        }
         showConfirm("Delete Test?", `Remove ${name}?`, async () => {
           showLoading(true);
           try {
@@ -702,64 +709,10 @@ document.addEventListener("click", async (e) => {
     togglePaymentStatus(id, pid, paid === 'true');
     return;
   }
-
-  if (!isAdmin) return; // Fail-safe check
-  
-  if (e.target.classList.contains("delete-patient-btn")) {
-    const { id, name } = e.target.dataset;
-    showConfirm("Delete Patient?", `Are you sure you want to remove ${name} and all associated tests?`, async () => {
-      showLoading(true);
-      try {
-        // Delete tests first (if not cascading)
-        await (await supabase.from(getTable("tests"))).delete().eq("patient_id", id);
-        await (await supabase.from(getTable("patients"))).delete().eq("id", id);
-        
-        await addLog("Patient", "Deleted", name);
-        showToast(`Removed ${name}`, "info");
-        await loadPatients();
-      } catch (err) {
-        showToast("Delete failed", "error");
-      } finally {
-        showLoading(false);
-      }
-    });
-  }
-
-  if (e.target.classList.contains("delete-test-btn")) {
-    const { id, name, pid } = e.target.dataset;
-    showConfirm("Delete Test?", `Remove "${name}" from this patient's record?`, async () => {
-      showLoading(true);
-      try {
-        await (await supabase.from(getTable("tests"))).delete().eq("id", id);
-        const pName = getPatientName(pid);
-        await addLog("Test", "Deleted", name, `For Patient: ${pName}`);
-        showToast("Removed test", "info");
-        await loadPatients();
-        await loadTests(pid);
-      } catch (err) {
-        showToast("Delete failed", "error");
-      } finally {
-        showLoading(false);
-      }
-    });
-  }
-
-
-  if (e.target.classList.contains("edit-patient-btn")) {
-    const id = e.target.dataset.id;
-    editPatient(id);
-  }
-  
-  if (e.target.classList.contains("edit-test-btn")) {
-    const { id, pid } = e.target.dataset;
-    editTest(id, pid);
-  }
-
-  if (e.target.classList.contains("generate-bill-btn")) {
-    const id = e.target.dataset.id;
-    generateInvoice(id);
-  }
 });
+
+
+
 
 
 async function editPatient(id) {
