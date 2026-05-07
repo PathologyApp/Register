@@ -276,16 +276,24 @@ async function enterApp() {
 }
 
 function initReportSelectors() {
+  // Populate Months
+  const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  reportMonth.innerHTML = months.map((m, i) => `<option value="${i}">${m}</option>`).join("");
+  reportMonth.value = new Date().getMonth();
+
+  // Populate Years
   const currentYear = new Date().getFullYear();
+  reportYear.innerHTML = "";
   for (let y = currentYear; y >= 2024; y--) {
     const opt = document.createElement("option");
     opt.value = y;
     opt.textContent = y;
     reportYear.appendChild(opt);
   }
-  reportMonth.value = new Date().getMonth();
+  
   reportDate.value = new Date().toISOString().split("T")[0];
 }
+
 
 reportType.onchange = () => {
   const type = reportType.value;
@@ -588,8 +596,8 @@ confirmPaymentBtn.onclick = async () => {
   
   try {
     const billNum = billNumberInput.value.trim();
-    // Get test name for log
-    const test = (await (await supabase.from(getTable("tests"))).select().eq("id", currentTestIdForPayment)).data?.[0];
+    // Get test name from local state for log
+    const test = allTests.find(t => t.id == currentTestIdForPayment);
     const testName = test ? test.test_name : "Test";
     const pName = getPatientName(currentPatientId);
 
@@ -924,8 +932,13 @@ async function loadLogs() {
     
     const filtered = data.filter(l => {
       if (filterDate && !l.created_at.startsWith(filterDate)) return false;
-      if (filterType !== "all" && !l.action.includes(`[${filterType}]`)) return false;
-      return true;
+      if (filterType === "all") return true;
+      
+      const actionLower = l.action.toLowerCase();
+      const typeLower = filterType.toLowerCase();
+      
+      // Support both new bracketed format [Patient] and old "Added Patient" format
+      return actionLower.includes(`[${typeLower}]`) || actionLower.includes(typeLower);
     });
 
     if (filtered.length === 0) {
@@ -934,9 +947,19 @@ async function loadLogs() {
     }
 
     filtered.forEach(l => {
+      let type = "Info";
       const typeMatch = l.action.match(/\[(.*?)\]/);
-      const type = typeMatch ? typeMatch[1] : "Info";
+      if (typeMatch) {
+        type = typeMatch[1];
+      } else {
+        // Infer type for old logs
+        if (l.action.includes("Patient")) type = "Patient";
+        else if (l.action.includes("Test")) type = "Test";
+        else if (l.action.includes("Pay")) type = "Payment";
+      }
+
       const actionText = l.action.replace(/\[.*?\]\s*/, "");
+
       
       const [name, ...detailsParts] = l.item.split(" | ");
       const details = detailsParts.join(" | ");
@@ -1012,7 +1035,34 @@ reportsTab.onclick = () => {
   logsTab.classList.remove("active");
 };
 
+reportType.onchange = () => {
+  if (reportType.value === "monthly") {
+    monthlySelectors.classList.remove("hidden");
+    dailySelectors.classList.add("hidden");
+  } else {
+    monthlySelectors.classList.add("hidden");
+    dailySelectors.classList.remove("hidden");
+  }
+};
+
+function initReportSelectors() {
+  // Populate Months
+  const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  reportMonth.innerHTML = months.map((m, i) => `<option value="${i}">${m}</option>`).join("");
+  reportMonth.value = new Date().getMonth();
+
+  // Populate Years
+  const currentYear = new Date().getFullYear();
+  reportYear.innerHTML = "";
+  for (let y = currentYear; y >= 2024; y--) {
+    reportYear.innerHTML += `<option value="${y}">${y}</option>`;
+  }
+  
+  reportDate.value = new Date().toISOString().split('T')[0];
+}
+
 generateReportBtn.onclick = () => generateReport();
+
 
 function generateReport() {
   const type = reportType.value;
