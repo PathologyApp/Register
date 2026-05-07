@@ -781,7 +781,7 @@ async function editPatient(id) {
   patientModal.classList.remove("hidden");
 }
 
-async function editTest(id, pid) {
+async function openEditTestModal(id, pid) {
   // Fetch all tests to find the one we need (since allTests might be filtered or not up to date)
   const data = await (await supabase.from(getTable("tests"))).select();
   const test = data.find(t => t.id == id);
