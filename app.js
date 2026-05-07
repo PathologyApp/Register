@@ -17,6 +17,12 @@ let currentPatientId = null;
 let currentPage = 1;
 let rowsPerPage = 50;
 
+let currentLogsPage = 1;
+let logsPerPage = 50;
+let currentPendingPage = 1;
+let currentPaidPage = 1;
+let paymentsPerPage = 25;
+
 
 const TEST_LIST = [
   { name: "C.B.C.", price: 250 },
@@ -999,7 +1005,6 @@ async function loadLogs() {
     const filterDate = logFilterDate.value;
     const filterType = logFilterType.value;
     const filtered = data.filter(l => {
-
       if (filterDate && l.created_at && !l.created_at.startsWith(filterDate)) return false;
       if (filterType === "all") return true;
       const actionLower = l.action.toLowerCase();
@@ -1007,13 +1012,18 @@ async function loadLogs() {
       return actionLower.includes(`[${typeLower}]`) || actionLower.includes(typeLower);
     }).sort((a, b) => (b.id || 0) - (a.id || 0));
 
+    // Paginate Logs
+    const totalLogs = filtered.length;
+    const start = (currentLogsPage - 1) * logsPerPage;
+    const paginated = filtered.slice(start, start + logsPerPage);
 
-    if (filtered.length === 0) {
+    if (paginated.length === 0) {
       logsContent.innerHTML = `<div class="empty-state">No matching logs found.</div>`;
+      renderLogsPagination(0);
       return;
     }
 
-    filtered.forEach(l => {
+    paginated.forEach(l => {
       let type = "Info";
       const actionLower = l.action.toLowerCase();
       const typeMatch = l.action.match(/\[(.*?)\]/);
@@ -1046,14 +1056,37 @@ async function loadLogs() {
       `;
       logsContent.appendChild(div);
     });
+
+    renderLogsPagination(totalLogs);
   } catch (err) { 
     console.error(err);
     logsContent.innerHTML = `<div class="empty-state">Error loading logs.</div>`;
   }
 }
 
-logFilterDate.onchange = () => loadLogs();
-logFilterType.onchange = () => loadLogs();
+function renderLogsPagination(totalItems) {
+  const container = document.getElementById("logsPagination");
+  const totalPages = Math.ceil(totalItems / logsPerPage);
+  if (totalPages <= 1) {
+    container.innerHTML = "";
+    return;
+  }
+
+  container.innerHTML = `
+    <button class="pagination-btn" ${currentLogsPage === 1 ? 'disabled' : ''} onclick="changeLogsPage(${currentLogsPage - 1})">Prev</button>
+    <div class="pagination-info">Page ${currentLogsPage} of ${totalPages}</div>
+    <button class="pagination-btn" ${currentLogsPage === totalPages ? 'disabled' : ''} onclick="changeLogsPage(${currentLogsPage + 1})">Next</button>
+  `;
+}
+
+window.changeLogsPage = (page) => {
+  currentLogsPage = page;
+  loadLogs();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+logFilterDate.onchange = () => { currentLogsPage = 1; loadLogs(); };
+logFilterType.onchange = () => { currentLogsPage = 1; loadLogs(); };
 
 
 patientsTab.onclick = () => {
@@ -1341,8 +1374,21 @@ async function loadPayments() {
     totalPendingGlobal.textContent = `Total Pending: ₹${totalPending}`;
     totalPaidGlobal.textContent = `Collected: ₹${totalPaid}`;
 
-    renderPaymentList(paymentList, pendingPatients, "pending");
-    renderPaymentList(paidList, paidPatients, "paid");
+    // Sort by largest amounts first
+    pendingPatients.sort((a,b) => b.total - a.total);
+    paidPatients.sort((a,b) => b.total - a.total);
+
+    // Paginate Pending
+    const startPend = (currentPendingPage - 1) * paymentsPerPage;
+    const paginatedPend = pendingPatients.slice(startPend, startPend + paymentsPerPage);
+    renderPaymentList(paymentList, paginatedPend, "pending");
+    renderPaymentPagination("pending", pendingPatients.length);
+
+    // Paginate Paid
+    const startPaid = (currentPaidPage - 1) * paymentsPerPage;
+    const paginatedPaid = paidPatients.slice(startPaid, startPaid + paymentsPerPage);
+    renderPaymentList(paidList, paginatedPaid, "paid");
+    renderPaymentPagination("paid", paidPatients.length);
 
   } catch (e) {
     console.error(e);
@@ -1386,6 +1432,30 @@ function renderPaymentList(container, data, mode) {
     container.appendChild(card);
   });
 }
+
+function renderPaymentPagination(mode, totalItems) {
+  const containerId = mode === "pending" ? "pendingPagination" : "paidPagination";
+  const container = document.getElementById(containerId);
+  const currentPage = mode === "pending" ? currentPendingPage : currentPaidPage;
+  const totalPages = Math.ceil(totalItems / paymentsPerPage);
+
+  if (totalPages <= 1) {
+    container.innerHTML = "";
+    return;
+  }
+
+  container.innerHTML = `
+    <button class="pagination-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="changePaymentPage('${mode}', ${currentPage - 1})">Prev</button>
+    <div class="pagination-info">Page ${currentPage} of ${totalPages}</div>
+    <button class="pagination-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="changePaymentPage('${mode}', ${currentPage + 1})">Next</button>
+  `;
+}
+
+window.changePaymentPage = (mode, page) => {
+  if (mode === "pending") currentPendingPage = page;
+  else currentPaidPage = page;
+  loadPayments();
+};
 
 function setTodayIfEmpty(inputId) {
   const el = document.getElementById(inputId);
