@@ -102,39 +102,45 @@
 
       <!-- Reports View -->
       <div id="reportsView" class="hidden">
-        <div class="report-controls">
-          <div class="report-header-row">
-            <h2>Financial Report</h2>
+        <div class="reports-controls">
+          <div class="report-filters">
             <select id="reportType">
-              <option value="monthly">Monthly Basis</option>
-              <option value="daily">Daily Basis</option>
+              <option value="monthly">Monthly Summary</option>
+              <option value="daily">Daily Detail</option>
             </select>
-          </div>
-          
-          <div class="selector-group">
-            <div id="monthlySelectors" class="selector-subset">
-              <select id="reportMonth">
-                <option value="0">January</option><option value="1">February</option>
-                <option value="2">March</option><option value="3">April</option>
-                <option value="4">May</option><option value="5">June</option>
-                <option value="6">July</option><option value="7">August</option>
-                <option value="8">September</option><option value="9">October</option>
-                <option value="10">November</option><option value="11">December</option>
-              </select>
+
+
+            <div id="monthlySelectors">
+              <select id="reportMonth"></select>
               <select id="reportYear"></select>
             </div>
-            
-            <div id="dailySelectors" class="selector-subset hidden">
+            <div id="dailySelectors" class="hidden">
               <input type="date" id="reportDate"/>
             </div>
-            
-            <button id="generateReportBtn" class="btn-primary">Generate Report</button>
+            <button id="generateReportBtn" class="btn-primary">View Report</button>
+          </div>
+          <div class="export-actions">
+            <button id="exportCSVBtn" class="btn-secondary">📥 Export to CSV</button>
           </div>
         </div>
         <div id="reportContent"></div>
       </div>
 
-      <div id="logsView" class="hidden"></div>
+      <div id="logsView" class="hidden">
+        <div class="logs-header">
+          <h2>Activity History</h2>
+          <div class="log-filters">
+            <input type="date" id="logFilterDate" title="Filter by date"/>
+            <select id="logFilterType">
+              <option value="all">All Actions</option>
+              <option value="Patient">Patients</option>
+              <option value="Test">Tests</option>
+              <option value="Payment">Payments</option>
+            </select>
+          </div>
+        </div>
+        <div id="logsContent"></div>
+      </div>
     </main>
 
     <button id="addPatientBtn" class="fab" title="Add Patient">+</button>
@@ -229,6 +235,28 @@
       <button id="confirmPaymentBtn" class="btn-primary">Confirm & Mark Paid</button>
     </div>
   </div>
+
+  <!-- Generic Confirmation Modal -->
+  <div id="confirmModal" class="modal hidden">
+    <div class="modal-content confirm-modal">
+      <div class="confirm-icon">⚠️</div>
+      <h2 id="confirmTitle">Are you sure?</h2>
+      <p id="confirmMessage">This action cannot be undone.</p>
+      <div class="confirm-actions">
+        <button id="confirmCancel" class="btn-secondary">Cancel</button>
+        <button id="confirmBtn" class="btn-primary btn-danger">Yes, Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Global Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay hidden">
+    <div class="spinner"></div>
+  </div>
+
+  <!-- Invoice Container (Print Only) -->
+  <div id="invoiceContainer" class="invoice-container"></div>
+
 
   <!-- Edit Test Modal -->
   <div id="editTestModal" class="modal hidden">

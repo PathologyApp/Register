@@ -134,6 +134,8 @@ const dailySelectors     = document.getElementById("dailySelectors");
 const reportDate         = document.getElementById("reportDate");
 const generateReportBtn  = document.getElementById("generateReportBtn");
 const reportContent      = document.getElementById("reportContent");
+const exportCSVBtn       = document.getElementById("exportCSVBtn");
+
 
 const patientSort        = document.getElementById("patientSort");
 const patientModalTitle  = document.getElementById("patientModalTitle");
@@ -152,15 +154,45 @@ const etDateInput        = document.getElementById("etDate");
 const etBillNumberInput  = document.getElementById("etBillNumber");
 const saveEditTestBtn    = document.getElementById("saveEditTest");
 
+const confirmModal       = document.getElementById("confirmModal");
+const confirmTitle       = document.getElementById("confirmTitle");
+const confirmMessage     = document.getElementById("confirmMessage");
+const confirmBtn         = document.getElementById("confirmBtn");
+const confirmCancel      = document.getElementById("confirmCancel");
+const loadingOverlay     = document.getElementById("loadingOverlay");
 
-let currentTestIdForPayment = null; // Track which test is being marked paid
+const logFilterDate      = document.getElementById("logFilterDate");
+const logFilterType      = document.getElementById("logFilterType");
+const logsContent        = document.getElementById("logsContent");
+
+let currentTestIdForPayment = null; 
+
 
 
 // ── Helpers ───────────────────────────────────────────────
 function getTable(base) {
-  // If in sample mode, use sample_ prefix
   return useSampleMode ? `sample_${base}` : base;
 }
+
+function showLoading(show) {
+  if (show) loadingOverlay.classList.remove("hidden");
+  else loadingOverlay.classList.add("hidden");
+}
+
+function showConfirm(title, msg, onConfirm, isDanger = true) {
+  confirmTitle.textContent = title;
+  confirmMessage.textContent = msg;
+  confirmBtn.textContent = isDanger ? "Yes, Delete" : "Yes, Proceed";
+  confirmBtn.className = isDanger ? "btn-primary btn-danger" : "btn-primary";
+  confirmModal.classList.remove("hidden");
+  
+  confirmBtn.onclick = () => {
+    confirmModal.classList.add("hidden");
+    onConfirm();
+  };
+  confirmCancel.onclick = () => confirmModal.classList.add("hidden");
+}
+
 
 // ── Auth & Mode Flow ──────────────────────────────────────
 const GOOGLE_ICON = `<svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 2.9l5.7-5.7C34.1 6.7 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 15.8 18.9 12 24 12c3.1 0 5.8 1.1 8 2.9l5.7-5.7C34.1 6.7 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-1.9 13.5-5.1l-6.2-5.2C29.3 35.5 26.7 36 24 36c-5.1 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.5 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.3 5.6l6.2 5.2C37.2 38.3 44 33 44 24c0-1.3-.1-2.6-.4-3.9z"/></svg>`;
@@ -303,8 +335,28 @@ savePatientBtn.onclick = async () => {
   const referred = pReferredInput.value.trim();
 
   if (!name) return;
+
+  // Duplicate Check
+  const isDuplicate = allPatients.find(p => 
+    p.id != id && 
+    p.name.toLowerCase() === name.toLowerCase() && 
+    p.admission_date === date
+  );
+
+  if (isDuplicate) {
+    showConfirm("⚠️ Duplicate Patient", `A patient named "${name}" already exists for ${formatDate(date)}. Do you want to add them anyway?`, () => {
+      savePatientRecord(id, name, age, gender, date, referred);
+    }, false); // false = not a danger button
+  } else {
+    savePatientRecord(id, name, age, gender, date, referred);
+  }
+};
+
+async function savePatientRecord(id, name, age, gender, date, referred) {
   savePatientBtn.disabled = true;
   savePatientBtn.textContent = id ? "Updating…" : "Saving…";
+  showLoading(true);
+
   try {
     const payload = {
       name, age, gender,
@@ -314,12 +366,21 @@ savePatientBtn.onclick = async () => {
     };
 
     if (id) {
+
+      // Get old data for log
+      const old = allPatients.find(p => p.id == id);
+      let diff = [];
+      if (old.name !== name) diff.push(`Name: ${old.name} → ${name}`);
+      if (old.age != age) diff.push(`Age: ${old.age} → ${age}`);
+      if (old.gender !== gender) diff.push(`Gender: ${old.gender} → ${gender}`);
+      if (old.referred_by !== referred) diff.push(`Ref: ${old.referred_by || "None"} → ${referred || "None"}`);
+
       await (await supabase.from(getTable("patients"))).update(id, payload);
-      await addLog("Updated Patient", name);
+      await addLog("Patient", "Updated", name, diff.join(", "));
       showToast(`✓ ${name} updated`, "success");
     } else {
       await (await supabase.from(getTable("patients"))).insert(payload);
-      await addLog("Added Patient", name);
+      await addLog("Patient", "Added", name);
       showToast(`✓ ${name} added`, "success");
     }
 
@@ -328,12 +389,13 @@ savePatientBtn.onclick = async () => {
   } catch (err) { 
     console.error(err);
     showToast("Error saving", "error"); 
-  }
-  finally { 
+  } finally { 
     savePatientBtn.disabled = false; 
     savePatientBtn.textContent = id ? "Update Patient" : "Save Patient"; 
+    showLoading(false);
   }
 };
+
 
 
 // ── Load Patients ─────────────────────────────────────────
@@ -423,8 +485,12 @@ function buildPatientCard(id, p, total) {
            <button class="add-test-btn" data-id="${id}">+ Add Test</button>
            ${isAdmin ? `<button class="delete-patient-btn" data-id="${id}" data-name="${p.name}">🗑 Delete Patient</button>` : ""}
         </div>
+        <div class="print-btn-cont">
+           <button class="btn-secondary generate-bill-btn" data-id="${id}" style="width:100%">📄 Generate & Print Bill</button>
+        </div>
       </div>
     </div>`;
+
 
 
   card.querySelector(`#hdr-${id}`).onclick = async (e) => {
@@ -518,14 +584,22 @@ confirmPaymentBtn.onclick = async () => {
   
   confirmPaymentBtn.disabled = true;
   confirmPaymentBtn.textContent = "Updating…";
+  showLoading(true);
   
   try {
+    const billNum = billNumberInput.value.trim();
+    // Get test name for log
+    const test = (await (await supabase.from(getTable("tests"))).select().eq("id", currentTestIdForPayment)).data?.[0];
+    const testName = test ? test.test_name : "Test";
+    const pName = getPatientName(currentPatientId);
+
     await (await supabase.from(getTable("tests"))).update(currentTestIdForPayment, { 
       paid: true, 
       payment_date: date,
-      bill_number: billNumberInput.value.trim() || null
+      bill_number: billNum || null
     });
 
+    await addLog("Payment", "Paid", testName, `For: ${pName}${billNum ? ' | Bill: '+billNum : ''}`);
     
     paymentDateModal.classList.add("hidden");
     await loadTests(currentPatientId);
@@ -538,8 +612,10 @@ confirmPaymentBtn.onclick = async () => {
   } finally {
     confirmPaymentBtn.disabled = false;
     confirmPaymentBtn.textContent = "Confirm & Mark Paid";
+    showLoading(false);
   }
 };
+
 
 closePayDateModal.onclick = () => paymentDateModal.classList.add("hidden");
 
@@ -555,24 +631,43 @@ document.addEventListener("click", async (e) => {
   
   if (e.target.classList.contains("delete-patient-btn")) {
     const { id, name } = e.target.dataset;
-    if (confirm(`Delete ${name}?`)) {
-      await (await supabase.from(getTable("patients"))).delete(id);
-      await addLog("Deleted Patient", name);
-      showToast("Removed", "info");
-      loadPatients();
-    }
+    showConfirm("Delete Patient?", `Are you sure you want to remove ${name} and all associated tests?`, async () => {
+      showLoading(true);
+      try {
+        // Delete tests first (if not cascading)
+        await (await supabase.from(getTable("tests"))).delete().eq("patient_id", id);
+        await (await supabase.from(getTable("patients"))).delete().eq("id", id);
+        
+        await addLog("Patient", "Deleted", name);
+        showToast(`Removed ${name}`, "info");
+        await loadPatients();
+      } catch (err) {
+        showToast("Delete failed", "error");
+      } finally {
+        showLoading(false);
+      }
+    });
   }
+
   if (e.target.classList.contains("delete-test-btn")) {
     const { id, name, pid } = e.target.dataset;
-    if (confirm(`Delete test "${name}"?`)) {
-      await (await supabase.from(getTable("tests"))).delete(id);
-      const pName = getPatientName(pid);
-      await addLog("Deleted Test", `${name} for ${pName}`);
-      showToast("Removed", "info");
-      await loadPatients();
-      await loadTests(pid);
-    }
+    showConfirm("Delete Test?", `Remove "${name}" from this patient's record?`, async () => {
+      showLoading(true);
+      try {
+        await (await supabase.from(getTable("tests"))).delete().eq("id", id);
+        const pName = getPatientName(pid);
+        await addLog("Test", "Deleted", name, `For Patient: ${pName}`);
+        showToast("Removed test", "info");
+        await loadPatients();
+        await loadTests(pid);
+      } catch (err) {
+        showToast("Delete failed", "error");
+      } finally {
+        showLoading(false);
+      }
+    });
   }
+
 
   if (e.target.classList.contains("edit-patient-btn")) {
     const id = e.target.dataset.id;
@@ -583,7 +678,13 @@ document.addEventListener("click", async (e) => {
     const { id, pid } = e.target.dataset;
     editTest(id, pid);
   }
+
+  if (e.target.classList.contains("generate-bill-btn")) {
+    const id = e.target.dataset.id;
+    generateInvoice(id);
+  }
 });
+
 
 async function editPatient(id) {
   const p = allPatients.find(p => p.id == id);
@@ -630,8 +731,16 @@ saveEditTestBtn.onclick = async () => {
   
   saveEditTestBtn.disabled = true;
   saveEditTestBtn.textContent = "Updating…";
+  showLoading(true);
   
   try {
+    // Fetch old for log
+    const old = allTests.find(t => t.id == id);
+    let diff = [];
+    if (old.test_name !== name) diff.push(`Name: ${old.test_name} → ${name}`);
+    if (old.amount != amount) diff.push(`₹${old.amount} → ₹${amount}`);
+    if (old.bill_number != billNumber) diff.push(`Bill: ${old.bill_number || "None"} → ${billNumber || "None"}`);
+
     await (await supabase.from(getTable("tests"))).update(id, {
       test_name: name,
       amount: amount,
@@ -639,8 +748,7 @@ saveEditTestBtn.onclick = async () => {
       bill_number: billNumber || null
     });
 
-    
-    await addLog("Updated Test", `${name} (₹${amount})`);
+    await addLog("Test", "Updated", name, diff.join(", "));
     showToast("Test updated", "success");
     editTestModal.classList.add("hidden");
     await loadPatients();
@@ -650,8 +758,10 @@ saveEditTestBtn.onclick = async () => {
   } finally {
     saveEditTestBtn.disabled = false;
     saveEditTestBtn.textContent = "Update Test";
+    showLoading(false);
   }
 };
+
 
 closeEditTestModal.onclick = () => editTestModal.classList.add("hidden");
 
@@ -754,6 +864,7 @@ saveTestBtn.onclick = async () => {
   const date = document.getElementById("tDate").value;
   saveTestBtn.disabled = true;
   saveTestBtn.textContent = "Saving…";
+  showLoading(true);
   
   try {
     const pName = getPatientName(currentPatientId);
@@ -772,7 +883,7 @@ saveTestBtn.onclick = async () => {
     
     // Aggregate log entry
     const testNames = selectedTests.map(t => t.name).join(", ");
-    await addLog("Added Tests", `${testNames} for ${pName}`);
+    await addLog("Test", "Added", testNames, `For Patient: ${pName}`);
     
     showToast(`✓ ${selectedTests.length} tests saved`, "success");
     testModal.classList.add("hidden");
@@ -786,31 +897,72 @@ saveTestBtn.onclick = async () => {
   } finally { 
     saveTestBtn.disabled = false; 
     saveTestBtn.textContent = "Save All Tests"; 
+    showLoading(false);
   }
 };
 
+
 // ── Logs & Helpers ────────────────────────────────────────
-async function addLog(action, item) {
+async function addLog(type, action, name, details = "") {
   try {
     await (await supabase.from(getTable("logs"))).insert({
-      action, item,
-      by: auth.currentUser?.displayName || "User"
+      action: `[${type}] ${action}`,
+      item: details ? `${name} | ${details}` : name,
+      by: auth.currentUser?.displayName || auth.currentUser?.email || "User"
     });
-  } catch (e) {}
+  } catch (e) { console.error("Log error:", e); }
 }
 
 async function loadLogs() {
+  logsContent.innerHTML = `<div class="loading-state">Loading history…</div>`;
   try {
     const data = await (await supabase.from(getTable("logs"))).select();
-    logsView.innerHTML = "";
-    data.forEach(l => {
+    logsContent.innerHTML = "";
+    
+    const filterDate = logFilterDate.value;
+    const filterType = logFilterType.value;
+    
+    const filtered = data.filter(l => {
+      if (filterDate && !l.created_at.startsWith(filterDate)) return false;
+      if (filterType !== "all" && !l.action.includes(`[${filterType}]`)) return false;
+      return true;
+    });
+
+    if (filtered.length === 0) {
+      logsContent.innerHTML = `<div class="empty-state">No matching logs found.</div>`;
+      return;
+    }
+
+    filtered.forEach(l => {
+      const typeMatch = l.action.match(/\[(.*?)\]/);
+      const type = typeMatch ? typeMatch[1] : "Info";
+      const actionText = l.action.replace(/\[.*?\]\s*/, "");
+      
+      const [name, ...detailsParts] = l.item.split(" | ");
+      const details = detailsParts.join(" | ");
+
       const div = document.createElement("div");
       div.className = "log-item";
-      div.innerHTML = `<div class="log-dot"></div><div><div class="log-action">${l.action}</div><div class="log-item-name">${l.item}</div><div class="log-by">by ${l.by}</div></div>`;
-      logsView.appendChild(div);
+      div.innerHTML = `
+        <div class="log-dot" style="background: var(--primary)"></div>
+        <div style="flex:1">
+          <div class="log-type-tag log-type-${type}">${type}</div>
+          <div class="log-action">${actionText}: <strong>${name}</strong></div>
+          ${details ? `<div class="log-diff">${details}</div>` : ""}
+          <div class="log-by">by ${l.by} • ${new Date(l.created_at).toLocaleString()}</div>
+        </div>
+      `;
+      logsContent.appendChild(div);
     });
-  } catch (err) {}
+  } catch (err) { 
+    console.error(err);
+    logsContent.innerHTML = `<div class="empty-state">Error loading logs.</div>`;
+  }
 }
+
+logFilterDate.onchange = () => loadLogs();
+logFilterType.onchange = () => loadLogs();
+
 
 patientsTab.onclick = () => {
   patientList.classList.remove("hidden");
@@ -864,12 +1016,12 @@ generateReportBtn.onclick = () => generateReport();
 
 function generateReport() {
   const type = reportType.value;
-  let monthTests = [];
+  let periodTests = [];
 
   if (type === "monthly") {
     const month = parseInt(reportMonth.value);
     const year = parseInt(reportYear.value);
-    monthTests = allTests.filter(t => {
+    periodTests = allTests.filter(t => {
       const d = new Date(t.test_date);
       return d.getMonth() === month && d.getFullYear() === year;
     });
@@ -879,17 +1031,27 @@ function generateReport() {
       showToast("Please select a date", "info");
       return;
     }
-    monthTests = allTests.filter(t => t.test_date === targetDate);
+    periodTests = allTests.filter(t => t.test_date === targetDate);
   }
 
-  if (monthTests.length === 0) {
+  if (periodTests.length === 0) {
     reportContent.innerHTML = `<div class="empty-state">No activity recorded for this period.</div>`;
     return;
   }
 
-  // Group by patient
+  // Stats calculation
+  let totalCollected = 0;
+  let totalPending = 0;
+  const testCounts = {};
   const patientGroups = {};
-  monthTests.forEach(t => {
+
+  periodTests.forEach(t => {
+    const amt = parseFloat(t.amount) || 0;
+    if (t.paid) totalCollected += amt;
+    else totalPending += amt;
+
+    testCounts[t.test_name] = (testCounts[t.test_name] || 0) + 1;
+
     if (!patientGroups[t.patient_id]) {
       const p = allPatients.find(ap => ap.id == t.patient_id);
       patientGroups[t.patient_id] = {
@@ -902,13 +1064,50 @@ function generateReport() {
     }
     const group = patientGroups[t.patient_id];
     group.tests.push(t.test_name);
-    const amt = parseFloat(t.amount) || 0;
     if (t.paid) group.collected += amt;
     else group.pending += amt;
   });
 
+  const topTests = Object.entries(testCounts)
+    .sort((a,b) => b[1] - a[1])
+    .slice(0, 5);
+  const maxCount = topTests[0]?.[1] || 1;
+
   let html = `
-    <div class="report-table-container">
+    <div class="report-summary-grid">
+      <div class="summary-card">
+        <label>Total Patients</label>
+        <div class="value">${Object.keys(patientGroups).length}</div>
+      </div>
+      <div class="summary-card revenue">
+        <label>Total Revenue</label>
+        <div class="value">₹${totalCollected}</div>
+      </div>
+      <div class="summary-card pending">
+        <label>Total Pending</label>
+        <div class="value">₹${totalPending}</div>
+      </div>
+      <div class="summary-card">
+        <label>Total Tests</label>
+        <div class="value">${periodTests.length}</div>
+      </div>
+    </div>
+
+    <div class="top-tests-section">
+      <h3>Most Common Tests</h3>
+      ${topTests.map(([name, count]) => `
+        <div class="top-test-item">
+          <span class="top-test-name">${name}</span>
+          <div class="top-test-bar-cont">
+            <div class="top-test-bar" style="width: ${(count/maxCount)*100}%"></div>
+          </div>
+          <span class="top-test-count">${count}</span>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="report-table-container" style="margin-top: 40px;">
+      <h3>Detailed Breakdown</h3>
       <table class="report-table">
         <thead>
           <tr>
@@ -921,13 +1120,7 @@ function generateReport() {
         <tbody>
   `;
 
-  let totalCollected = 0;
-  let totalTestsCount = monthTests.length;
-  let patientIds = Object.keys(patientGroups);
-
-  patientIds.forEach(pid => {
-    const g = patientGroups[pid];
-    totalCollected += g.collected;
+  Object.values(patientGroups).forEach(g => {
     html += `
       <tr>
         <td>
@@ -941,28 +1134,53 @@ function generateReport() {
     `;
   });
 
-  html += `
-        </tbody>
-      </table>
-    </div>
-    <div class="report-summary-box">
-      <div class="summary-item">
-        <label>Total Patients</label>
-        <span>${patientIds.length}</span>
-      </div>
-      <div class="summary-item">
-        <label>Total Tests</label>
-        <span>${totalTestsCount}</span>
-      </div>
-      <div class="summary-item">
-        <label>Total Collected</label>
-        <span>₹${totalCollected}</span>
-      </div>
-    </div>
-  `;
-
+  html += `</tbody></table></div>`;
   reportContent.innerHTML = html;
 }
+
+exportCSVBtn.onclick = () => exportToCSV();
+
+async function exportToCSV() {
+  showLoading(true);
+  try {
+    const patients = allPatients;
+    const tests = allTests;
+    
+    let csv = "Patient Name,Age,Gender,Admission Date,Referred By,Test Name,Amount,Status,Payment Date,Bill Number\n";
+    
+    tests.forEach(t => {
+      const p = patients.find(ap => ap.id == t.patient_id) || {};
+      const row = [
+        `"${p.name || 'Unknown'}"`,
+        p.age || "",
+        p.gender || "",
+        p.admission_date || "",
+        `"${p.referred_by || ''}"`,
+        `"${t.test_name}"`,
+        t.amount || 0,
+        t.paid ? "Paid" : "Pending",
+        t.payment_date || "",
+        `"${t.bill_number || ''}"`
+      ];
+      csv += row.join(",") + "\n";
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const dateStr = new Date().toISOString().split('T')[0];
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute("download", `Pathology_Export_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast("Export successful", "success");
+  } catch (e) {
+    showToast("Export failed", "error");
+  } finally {
+    showLoading(false);
+  }
+}
+
 
 async function loadPayments() {
   paymentList.innerHTML = `<div class="loading-state">Analyzing accounts...</div>`;
@@ -1055,4 +1273,92 @@ function formatDate(dateStr) {
     const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
     return `${parseInt(d)} ${months[parseInt(m,10)-1]} ${y}`;
   } catch { return dateStr; }
+}
+
+async function generateInvoice(patientId) {
+  const p = allPatients.find(ap => ap.id == patientId);
+  if (!p) return;
+  
+  showLoading(true);
+  try {
+    const tests = allTests.filter(t => t.patient_id == patientId);
+    if (tests.length === 0) {
+      showToast("No tests found for this patient", "info");
+      return;
+    }
+    
+    const total = tests.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+    const invoiceCont = document.getElementById("invoiceContainer");
+    
+    invoiceCont.innerHTML = `
+      <div class="invoice-header">
+        <div class="lab-info">
+          <h1>PATHOLOGY LABORATORY</h1>
+          <p>Professional Diagnostic Services</p>
+        </div>
+        <div class="invoice-title">
+          <h2>INVOICE</h2>
+          <p>Date: ${new Date().toLocaleDateString()}</p>
+        </div>
+      </div>
+
+      <div class="patient-info-block">
+        <div class="info-item">
+          <label>Patient Name</label>
+          <span>${p.name}</span>
+        </div>
+        <div class="info-item">
+          <label>Age / Gender</label>
+          <span>${p.age} Years / ${p.gender}</span>
+        </div>
+        <div class="info-item">
+          <label>Admission Date</label>
+          <span>${formatDate(p.admission_date)}</span>
+        </div>
+        <div class="info-item">
+          <label>Referred By</label>
+          <span>${p.referred_by || "Self"}</span>
+        </div>
+      </div>
+
+      <table class="invoice-table">
+        <thead>
+          <tr>
+            <th>Test Description</th>
+            <th>Test Date</th>
+            <th>Bill No.</th>
+            <th>Status</th>
+            <th style="text-align:right">Price</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tests.map(t => `
+            <tr>
+              <td>${t.test_name}</td>
+              <td>${formatDate(t.test_date)}</td>
+              <td>${t.bill_number || "—"}</td>
+              <td>${t.paid ? "Paid" : "Pending"}</td>
+              <td style="text-align:right">₹${t.amount}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+
+      <div class="invoice-total-row">
+        <span class="total-label">Grand Total</span>
+        <span class="total-value">₹${total}</span>
+      </div>
+
+      <div class="invoice-footer">
+        <p>This is a computer-generated invoice and does not require a signature.</p>
+        <p>Thank you for choosing our services.</p>
+      </div>
+    `;
+    
+    window.print();
+  } catch (err) {
+    showToast("Error generating bill", "error");
+  } finally {
+    showLoading(false);
+  }
 }
