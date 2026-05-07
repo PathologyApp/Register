@@ -1668,7 +1668,7 @@ const TOUR_STEPS = [
   },
   {
     title: 'Add New Patient',
-    text: 'Click this button to add a new patient. The app will automatically learn new doctor names as you type!',
+    text: 'Click the <span class="mini-fab">+</span> button to add a new patient. The app will automatically learn new doctor names as you type!',
     target: 'addPatientBtn',
     tab: 'patients'
   },
@@ -1730,7 +1730,7 @@ function showStep() {
 
   tourStepIndicator.textContent = `${currentTourStep + 1} / ${TOUR_STEPS.length}`;
   tourTitle.textContent = step.title;
-  tourText.textContent = step.text;
+  tourText.innerHTML = step.text;
 
   prevTourBtn.classList.toggle('hidden', currentTourStep === 0);
   nextTourBtn.textContent = currentTourStep === TOUR_STEPS.length - 1 ? 'Finish' : 'Next';

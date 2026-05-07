@@ -1990,3 +1990,20 @@ html, body {
     font-size: 12px;
   }
 }
+
+
+.mini-fab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: var(--primary);
+  color: white;
+  border-radius: 50%;
+  font-weight: 800;
+  font-size: 16px;
+  margin: 0 4px;
+  vertical-align: middle;
+  box-shadow: 0 2px 5px rgba(79, 70, 229, 0.3);
+}
