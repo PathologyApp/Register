@@ -1658,3 +1658,146 @@ async function generateInvoice(patientId) {
     showLoading(false);
   }
 }
+
+/* -- Onboarding Assistant Logic ------------------------ */
+const TOUR_STEPS = [
+  {
+    title: 'Welcome!',
+    text: 'Let\\'s take a quick 1-minute tour to see what\\'s new in your Pathology Register.',
+    target: null
+  },
+  {
+    title: 'Add New Patient',
+    text: 'Click this button to add a new patient. The app will automatically learn new doctor names as you type!',
+    target: 'addPatientBtn',
+    tab: 'patients'
+  },
+  {
+    title: 'Smart Search',
+    text: 'Find anyone instantly by name or Serial Number (e.g., type #101).',
+    target: 'patientSearch',
+    tab: 'patients'
+  },
+  {
+    title: 'Financial Overview',
+    text: 'Monitor pending and collected payments. Patient entries are now collapsible to save space!',
+    target: 'paymentsTab',
+    tab: 'payments'
+  },
+  {
+    title: 'Activity History',
+    text: 'Every action is logged here for full accountability. You can filter by date or type.',
+    target: 'logsTab',
+    tab: 'logs'
+  },
+  {
+    title: 'Performance Reports',
+    text: 'Generate detailed summaries and export them for your records.',
+    target: 'reportsTab',
+    tab: 'reports'
+  }
+];
+
+let currentTourStep = 0;
+const tutorialOverlay = document.getElementById('tutorialOverlay');
+const tutorialSpotlight = document.getElementById('tutorialSpotlight');
+const tutorialCard = document.getElementById('tutorialCard');
+const tourStepIndicator = document.getElementById('tourStepIndicator');
+const tourTitle = document.getElementById('tourTitle');
+const tourText = document.getElementById('tourText');
+const nextTourBtn = document.getElementById('nextTourBtn');
+const prevTourBtn = document.getElementById('prevTourBtn');
+const skipTourBtn = document.getElementById('skipTourBtn');
+
+function startTour() {
+  if (localStorage.getItem('tour_completed') === 'true') return;
+  currentTourStep = 0;
+  showStep();
+  tutorialOverlay.classList.remove('hidden');
+}
+
+function showStep() {
+  const step = TOUR_STEPS[currentTourStep];
+  
+  // Change tab if needed
+  if (step.tab) {
+    if (step.tab === 'patients') patientsTab.click();
+    if (step.tab === 'payments') paymentsTab.click();
+    if (step.tab === 'logs') logsTab.click();
+    if (step.tab === 'reports') reportsTab.click();
+  }
+
+  tourStepIndicator.textContent = \\ / \\;
+  tourTitle.textContent = step.title;
+  tourText.textContent = step.text;
+
+  prevTourBtn.classList.toggle('hidden', currentTourStep === 0);
+  nextTourBtn.textContent = currentTourStep === TOUR_STEPS.length - 1 ? 'Finish' : 'Next';
+
+  setTimeout(() => {
+    if (step.target) {
+      const el = document.getElementById(step.target);
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        const pad = 10;
+        tutorialSpotlight.style.width = \\px\;
+        tutorialSpotlight.style.height = \\px\;
+        tutorialSpotlight.style.left = \\px\;
+        tutorialSpotlight.style.top = \\px\;
+        tutorialSpotlight.classList.remove('hidden');
+
+        // Position card
+        const cardRect = tutorialCard.getBoundingClientRect();
+        let top = rect.bottom + 20;
+        if (top + cardRect.height > window.innerHeight) top = rect.top - cardRect.height - 20;
+        let left = rect.left + rect.width / 2 - cardRect.width / 2;
+        left = Math.max(20, Math.min(left, window.innerWidth - cardRect.width - 20));
+
+        tutorialCard.style.top = \\px\;
+        tutorialCard.style.left = \\px\;
+        tutorialCard.style.margin = '0';
+      } else {
+        resetToCenter();
+      }
+    } else {
+      resetToCenter();
+    }
+  }, 100);
+}
+
+function resetToCenter() {
+  tutorialSpotlight.style.width = '0';
+  tutorialSpotlight.style.height = '0';
+  tutorialSpotlight.style.left = '50%';
+  tutorialSpotlight.style.top = '50%';
+  tutorialCard.style.top = '50%';
+  tutorialCard.style.left = '50%';
+  tutorialCard.style.transform = 'translate(-50%, -50%)';
+}
+
+nextTourBtn.onclick = () => {
+  if (currentTourStep < TOUR_STEPS.length - 1) {
+    currentTourStep++;
+    showStep();
+  } else {
+    endTour(true);
+  }
+};
+
+prevTourBtn.onclick = () => {
+  if (currentTourStep > 0) {
+    currentTourStep--;
+    showStep();
+  }
+};
+
+skipTourBtn.onclick = () => endTour(false);
+
+function endTour(permanent) {
+  tutorialOverlay.classList.add('hidden');
+  if (permanent) localStorage.setItem('tour_completed', 'true');
+}
+
+// Start tour after initial data loads
+setTimeout(startTour, 2000);
+
