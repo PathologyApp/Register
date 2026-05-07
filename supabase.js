@@ -27,13 +27,14 @@ export const supabase = {
         });
         return await res.json();
       },
-      async delete(id) {
-        const res = await fetch(`${baseUrl}?id=eq.${id}`, {
+      async delete(id, column = "id") {
+        const res = await fetch(`${baseUrl}?${column}=eq.${id}`, {
           method: "DELETE",
           headers
         });
         return res.ok;
       },
+
       async update(id, data) {
         const res = await fetch(`${baseUrl}?id=eq.${id}`, {
           method: "PATCH",

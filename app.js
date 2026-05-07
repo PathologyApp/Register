@@ -502,18 +502,49 @@ function buildPatientCard(id, p, total) {
 
 
   card.querySelector(`#hdr-${id}`).onclick = async (e) => {
-    if (e.target.closest('.card-actions')) return;
     if (e.target.closest('.edit-patient-btn')) return;
     const body = document.getElementById(`body-${id}`);
-
     const chev = document.getElementById(`chev-${id}`);
     const isOpen = !body.classList.contains("hidden");
     body.classList.toggle("hidden");
     chev.classList.toggle("open", !isOpen);
     if (!isOpen) await loadTests(id);
   };
+
+  card.querySelector('.edit-patient-btn')?.addEventListener('click', () => {
+    const p = allPatients.find(ap => ap.id == id);
+    patientModalTitle.textContent = "Edit Patient";
+    savePatientBtn.textContent = "Update Patient";
+    editPatientId.value = id;
+    document.getElementById("pName").value = p.name;
+    document.getElementById("pAge").value = p.age;
+    document.getElementById("pGender").value = p.gender;
+    document.getElementById("pDate").value = p.admission_date;
+    pReferredInput.value = p.referred_by || "";
+    patientModal.classList.remove("hidden");
+  });
+
+  card.querySelector('.delete-patient-btn')?.addEventListener('click', () => {
+    showConfirm("Delete Patient?", `Remove ${p.name} and all associated tests?`, async () => {
+      showLoading(true);
+      try {
+        await (await supabase.from(getTable("tests"))).delete(id, "patient_id"); // delete tests
+        await (await supabase.from(getTable("patients"))).delete(id);
+        await addLog("Patient", "Deleted", p.name);
+        await loadPatients();
+        showToast("Patient deleted", "success");
+      } catch (e) { showToast("Error deleting", "error"); }
+      finally { showLoading(false); }
+    });
+  });
+
+  card.querySelector('.generate-bill-btn')?.addEventListener('click', () => {
+    generateInvoice(id);
+  });
+
   return card;
 }
+
 
 // ── Load Tests ────────────────────────────────────────────
 function getPatientName(id) {
@@ -559,8 +590,45 @@ async function loadTests(patientId) {
 
       container.appendChild(div);
     });
-  } catch (err) { container.innerHTML = `<div class="no-tests">Error</div>`; }
+
+    // Add event listeners to toggles and buttons
+    container.querySelectorAll('.payment-toggle').forEach(el => {
+      el.onclick = () => {
+        const { id, pid, paid } = el.dataset;
+        togglePaymentStatus(id, pid, paid === 'true');
+      };
+    });
+
+    container.querySelectorAll('.delete-test-btn').forEach(el => {
+      el.onclick = () => {
+        const { id, name, pid } = el.dataset;
+        showConfirm("Delete Test?", `Remove ${name}?`, async () => {
+          showLoading(true);
+          try {
+            await (await supabase.from(getTable("tests"))).delete(id);
+            await addLog("Test", "Deleted", name, `For Patient ID: ${pid}`);
+            await loadTests(pid);
+            await loadPatients();
+            showToast("Test deleted", "success");
+          } catch (e) { showToast("Error deleting", "error"); }
+          finally { showLoading(false); }
+        });
+      };
+    });
+
+    container.querySelectorAll('.edit-test-btn').forEach(el => {
+      el.onclick = () => {
+        const { id, pid } = el.dataset;
+        openEditTestModal(id, pid);
+      };
+    });
+
+  } catch (err) { 
+    console.error(err);
+    container.innerHTML = `<div class="no-tests">Error loading tests</div>`; 
+  }
 }
+
 
 async function togglePaymentStatus(id, patientId, currentPaid) {
   if (!currentPaid) {
@@ -948,17 +1016,19 @@ async function loadLogs() {
 
     filtered.forEach(l => {
       let type = "Info";
+      const actionLower = l.action.toLowerCase();
       const typeMatch = l.action.match(/\[(.*?)\]/);
       if (typeMatch) {
         type = typeMatch[1];
       } else {
-        // Infer type for old logs
-        if (l.action.includes("Patient")) type = "Patient";
-        else if (l.action.includes("Test")) type = "Test";
-        else if (l.action.includes("Pay")) type = "Payment";
+        // Infer type for old logs (case-insensitive)
+        if (actionLower.includes("patient")) type = "Patient";
+        else if (actionLower.includes("test")) type = "Test";
+        else if (actionLower.includes("pay")) type = "Payment";
       }
 
       const actionText = l.action.replace(/\[.*?\]\s*/, "");
+
 
       
       const [name, ...detailsParts] = l.item.split(" | ");
