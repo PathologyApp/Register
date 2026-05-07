@@ -14,6 +14,9 @@ let allPatients = [];
 let allTests = [];
 let selectedTests = []; // State for multi-test selection in modal
 let currentPatientId = null;
+let currentPage = 1;
+let rowsPerPage = 50;
+
 
 const TEST_LIST = [
   { name: "C.B.C.", price: 250 },
@@ -138,6 +141,10 @@ const exportCSVBtn       = document.getElementById("exportCSVBtn");
 
 
 const patientSort        = document.getElementById("patientSort");
+const dateFilter         = document.getElementById("dateFilter");
+const itemsPerPageSelect = document.getElementById("itemsPerPage");
+const paginationControls = document.getElementById("paginationControls");
+
 const patientModalTitle  = document.getElementById("patientModalTitle");
 const editPatientId      = document.getElementById("editPatientId");
 const pReferredInput     = document.getElementById("pReferred");
@@ -412,11 +419,13 @@ async function loadPatients() {
   try {
     allPatients = await (await supabase.from(getTable("patients"))).select();
     allTests = await (await supabase.from(getTable("tests"))).select();
+    currentPage = 1; // Reset to first page on reload
     filterAndRender();
   } catch (err) {
     patientList.innerHTML = `<div class="empty-state">Error loading data.</div>`;
   }
 }
+
 
 
 function renderPatients(patients) {
@@ -435,20 +444,29 @@ function renderPatients(patients) {
 }
 
 
-patientSearch.oninput = (e) => {
+patientSearch.oninput = () => { currentPage = 1; filterAndRender(); };
+dateFilter.onchange = () => { currentPage = 1; filterAndRender(); };
+patientSort.onchange = () => { filterAndRender(); };
+itemsPerPageSelect.onchange = () => {
+  rowsPerPage = parseInt(itemsPerPageSelect.value);
+  currentPage = 1;
   filterAndRender();
 };
 
-patientSort.onchange = () => {
-  filterAndRender();
-};
 
 function filterAndRender() {
   const q = (patientSearch.value || "").toLowerCase();
+  const d = dateFilter.value; // YYYY-MM-DD
   const sortVal = patientSort ? patientSort.value : "default";
   
-  let filtered = allPatients.filter(p => (p.name || "").toLowerCase().includes(q));
+  // 1. Filter
+  let filtered = allPatients.filter(p => {
+    const matchesName = (p.name || "").toLowerCase().includes(q);
+    const matchesDate = !d || p.admission_date === d;
+    return matchesName && matchesDate;
+  });
   
+  // 2. Sort
   if (sortVal === "oldest") {
     filtered.sort((a,b) => new Date(a.admission_date) - new Date(b.admission_date));
   } else if (sortVal === "name-asc") {
@@ -456,12 +474,40 @@ function filterAndRender() {
   } else if (sortVal === "name-desc") {
     filtered.sort((a,b) => (b.name || "").localeCompare(a.name || ""));
   } else {
-    // Default: newest first
     filtered.sort((a,b) => new Date(b.admission_date) - new Date(a.admission_date));
   }
   
-  renderPatients(filtered);
+  // 3. Paginate
+  const totalItems = filtered.length;
+  const start = (currentPage - 1) * rowsPerPage;
+  const paginated = filtered.slice(start, start + rowsPerPage);
+  
+  renderPatients(paginated);
+  renderPagination(totalItems);
 }
+
+function renderPagination(totalItems) {
+  const totalPages = Math.ceil(totalItems / rowsPerPage);
+  if (totalPages <= 1) {
+    paginationControls.innerHTML = "";
+    return;
+  }
+
+  let html = `
+    <button class="pagination-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="changePage(${currentPage - 1})">Prev</button>
+    <div class="pagination-info">Page ${currentPage} of ${totalPages}</div>
+    <button class="pagination-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="changePage(${currentPage + 1})">Next</button>
+  `;
+  
+  paginationControls.innerHTML = html;
+}
+
+window.changePage = (page) => {
+  currentPage = page;
+  filterAndRender();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
 
 
 

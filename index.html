@@ -71,17 +71,28 @@
 
     <main>
       <div id="patientSearchContainer" class="search-container">
-        <input id="patientSearch" type="text" placeholder="🔍 Search patients by name..." autocomplete="off"/>
+        <div class="search-main">
+          <input id="patientSearch" type="text" placeholder="🔍 Search by name..." autocomplete="off"/>
+          <input id="dateFilter" type="date" title="Filter by Admission Date" />
+        </div>
         <div class="sort-container">
+          <select id="itemsPerPage" title="Patients per page">
+            <option value="10">10 per page</option>
+            <option value="50" selected>50 per page</option>
+            <option value="100">100 per page</option>
+          </select>
           <select id="patientSort">
-            <option value="default">Sort: Newest First</option>
-            <option value="oldest">Sort: Oldest First</option>
+            <option value="default">Newest First</option>
+            <option value="oldest">Oldest First</option>
             <option value="name-asc">Name: A to Z</option>
             <option value="name-desc">Name: Z to A</option>
           </select>
         </div>
       </div>
+
       <div id="patientList"></div>
+      <div id="paginationControls" class="pagination-container"></div>
+
       
       <!-- Payment View -->
       <div id="paymentView" class="hidden">
