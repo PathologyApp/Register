@@ -1105,33 +1105,8 @@ reportsTab.onclick = () => {
   logsTab.classList.remove("active");
 };
 
-reportType.onchange = () => {
-  if (reportType.value === "monthly") {
-    monthlySelectors.classList.remove("hidden");
-    dailySelectors.classList.add("hidden");
-  } else {
-    monthlySelectors.classList.add("hidden");
-    dailySelectors.classList.remove("hidden");
-  }
-};
-
-function initReportSelectors() {
-  // Populate Months
-  const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-  reportMonth.innerHTML = months.map((m, i) => `<option value="${i}">${m}</option>`).join("");
-  reportMonth.value = new Date().getMonth();
-
-  // Populate Years
-  const currentYear = new Date().getFullYear();
-  reportYear.innerHTML = "";
-  for (let y = currentYear; y >= 2024; y--) {
-    reportYear.innerHTML += `<option value="${y}">${y}</option>`;
-  }
-  
-  reportDate.value = new Date().toISOString().split('T')[0];
-}
-
 generateReportBtn.onclick = () => generateReport();
+
 
 
 function generateReport() {
