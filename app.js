@@ -153,6 +153,7 @@ const exportCSVBtn       = document.getElementById("exportCSVBtn");
 
 const patientSort        = document.getElementById("patientSort");
 const dateFilter         = document.getElementById("dateFilter");
+const testDateFilter     = document.getElementById("testDateFilter");
 const itemsPerPageSelect = document.getElementById("itemsPerPage");
 const paginationControls = document.getElementById("paginationControls");
 
@@ -466,6 +467,7 @@ function renderPatients(patients) {
 
 patientSearch.oninput = () => { currentPage = 1; filterAndRender(); };
 dateFilter.onchange = () => { currentPage = 1; filterAndRender(); };
+testDateFilter.onchange = () => { currentPage = 1; filterAndRender(); };
 patientSort.onchange = () => { filterAndRender(); };
 itemsPerPageSelect.onchange = () => {
   rowsPerPage = parseInt(itemsPerPageSelect.value);
@@ -501,6 +503,7 @@ function updateTestSuggestions(tests) {
 function filterAndRender() {
   const q = (patientSearch.value || "").toLowerCase();
   const d = dateFilter.value; // YYYY-MM-DD
+  const td = testDateFilter.value; // YYYY-MM-DD
   const sortVal = patientSort ? patientSort.value : "default";
   
   // 1. Filter
@@ -509,7 +512,13 @@ function filterAndRender() {
     const matchesName = (p.name || "").toLowerCase().includes(q);
     const matchesId = p.id.toString() === qLower || p.id.toString().includes(qLower && q.startsWith('#') ? qLower : 'NEVER_MATCH');
     const matchesDate = !d || p.admission_date === d;
-    return (matchesName || (q.startsWith('#') && matchesId)) && matchesDate;
+    
+    let matchesTestDate = true;
+    if (td) {
+       matchesTestDate = allTests.some(t => t.patient_id == p.id && t.test_date === td);
+    }
+    
+    return (matchesName || (q.startsWith('#') && matchesId)) && matchesDate && matchesTestDate;
   });
   
   // 2. Sort
@@ -647,14 +656,33 @@ function getPatientName(id) {
   return p ? p.name : "Unknown Patient";
 }
 
-async function loadTests(patientId) {
+async function loadTests(patientId, overrideDateFilter = false) {
   const container = document.getElementById(`tests-${patientId}`);
   if (!container) return;
   container.innerHTML = `<div class="no-tests">Loading…</div>`;
   try {
     const data = await (await supabase.from(getTable("tests"))).select();
-    const pTests = data.filter(t => t.patient_id == patientId);
+    let pTests = data.filter(t => t.patient_id == patientId);
+    
+    const td = testDateFilter.value;
+    let showingFiltered = false;
+    if (td && !overrideDateFilter) {
+      pTests = pTests.filter(t => t.test_date === td);
+      showingFiltered = true;
+    }
+    
     container.innerHTML = "";
+    
+    if (showingFiltered) {
+      const banner = document.createElement("div");
+      banner.style = "background:var(--surface2); padding:8px 12px; border-radius:6px; margin-bottom:10px; font-size:13px; color:var(--text-2); display:flex; justify-content:space-between; align-items:center;";
+      banner.innerHTML = `
+        <span>Showing tests for <strong>${formatDate(td)}</strong></span>
+        <button class="btn-secondary" style="padding:4px 8px; font-size:12px;" onclick="loadTests('${patientId}', true)">Show All Dates</button>
+      `;
+      container.appendChild(banner);
+    }
+    
     if (pTests.length === 0) {
       container.innerHTML = `<div class="no-tests">No tests added yet</div>`;
       return;
