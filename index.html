@@ -73,10 +73,19 @@
 
     <main>
       <div id="patientSearchContainer" class="search-container">
-        <div class="search-main">
-          <input id="patientSearch" type="text" placeholder="🔍 Search by name..." autocomplete="off"/>
-          <input id="dateFilter" type="date" title="Filter by Admission Date" />
-          <input id="testDateFilter" type="date" title="Filter by Test Date" />
+        <div class="search-main" style="display:flex; align-items:flex-end; gap:15px; flex-wrap:wrap;">
+          <div style="display:flex; flex-direction:column; gap:4px; flex:1; min-width:200px;">
+            <label for="patientSearch" style="font-size:11px; font-weight:600; color:var(--text-2); text-transform:uppercase; letter-spacing:0.5px;">Search Patient</label>
+            <input id="patientSearch" type="text" placeholder="🔍 Search by name..." autocomplete="off" style="width:100%;" />
+          </div>
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <label for="dateFilter" style="font-size:11px; font-weight:600; color:var(--text-2); text-transform:uppercase; letter-spacing:0.5px;">Admission Date</label>
+            <input id="dateFilter" type="date" title="Filter by Admission Date" />
+          </div>
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <label for="testDateFilter" style="font-size:11px; font-weight:600; color:var(--text-2); text-transform:uppercase; letter-spacing:0.5px;">Test Date</label>
+            <input id="testDateFilter" type="date" title="Filter by Test Date" />
+          </div>
         </div>
         <div class="sort-container">
           <select id="itemsPerPage" title="Patients per page">
