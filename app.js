@@ -188,7 +188,7 @@ const paidSubTab         = document.getElementById("paidSubTab");
 const pendingSection     = document.getElementById("pendingSection");
 const paidSection        = document.getElementById("paidSection");
 
-let currentTestIdForPayment = null; 
+let currentTestIdsForPayment = []; 
 
 
 
@@ -582,6 +582,8 @@ function buildPatientCard(id, p, total) {
         <div id="tests-${id}"><div class="no-tests">Loading…</div></div>
         <div class="card-actions">
            <button class="add-test-btn" data-id="${id}">+ Add Test</button>
+           <button class="btn-primary hidden bulk-pay-btn" id="bulk-pay-${id}" data-id="${id}">Pay Selected</button>
+           <button class="btn-secondary hidden bulk-revert-btn" id="bulk-revert-${id}" data-id="${id}">Revert</button>
            ${isAdmin ? `<button class="delete-patient-btn" data-id="${id}" data-name="${p.name}">🗑 Delete Patient</button>` : ""}
         </div>
         <div class="print-btn-cont">
@@ -662,15 +664,18 @@ async function loadTests(patientId) {
       const tId = t.id || t.ID || t.test_id; // Robust ID detection
 
       div.innerHTML = `
-        <div class="test-left-info">
-          <div class="test-name-row" style="display:flex; align-items:center; gap:8px;">
-            <span class="test-name">${t.test_name}</span>
-            ${isAdmin ? `<button class="edit-test-btn" data-id="${tId}" data-pid="${patientId}">✏️</button>` : ""}
-          </div>
-          <div class="test-sub-info">
-            ${t.amount ? `<span class="test-amount">₹${t.amount}</span>` : ""}
-            <span class="test-date">${formatDate(t.test_date)}</span>
-            ${t.bill_number ? `<span class="test-bill">Bill: ${t.bill_number}</span>` : ""}
+        <div class="test-left-info" style="display:flex; align-items:flex-start; gap:10px;">
+          <input type="checkbox" class="bulk-test-cb" data-id="${tId}" data-paid="${isPaid}" style="margin-top:4px; width:16px; height:16px; cursor:pointer;" title="Select test">
+          <div>
+            <div class="test-name-row" style="display:flex; align-items:center; gap:8px;">
+              <span class="test-name">${t.test_name}</span>
+              ${isAdmin ? `<button class="edit-test-btn" data-id="${tId}" data-pid="${patientId}">✏️</button>` : ""}
+            </div>
+            <div class="test-sub-info">
+              ${t.amount ? `<span class="test-amount">₹${t.amount}</span>` : ""}
+              <span class="test-date">${formatDate(t.test_date)}</span>
+              ${t.bill_number ? `<span class="test-bill">Bill: ${t.bill_number}</span>` : ""}
+            </div>
           </div>
         </div>
         <div class="test-right">
@@ -721,6 +726,85 @@ async function loadTests(patientId) {
       };
     });
 
+    const bulkPayBtn = document.getElementById(`bulk-pay-${patientId}`);
+    const bulkRevertBtn = document.getElementById(`bulk-revert-${patientId}`);
+    
+    if (bulkPayBtn || bulkRevertBtn) {
+      const updateBulkBtn = () => {
+        const checked = Array.from(container.querySelectorAll('.bulk-test-cb:checked'));
+        const pendingChecked = checked.filter(cb => cb.dataset.paid === "false");
+        const paidChecked = checked.filter(cb => cb.dataset.paid === "true");
+
+        if (bulkPayBtn) {
+          if (pendingChecked.length > 0) {
+            bulkPayBtn.classList.remove('hidden');
+            bulkPayBtn.textContent = `Pay Selected (${pendingChecked.length})`;
+          } else {
+            bulkPayBtn.classList.add('hidden');
+          }
+        }
+
+        if (bulkRevertBtn) {
+          if (paidChecked.length > 0) {
+            bulkRevertBtn.classList.remove('hidden');
+            bulkRevertBtn.textContent = `Revert (${paidChecked.length})`;
+          } else {
+            bulkRevertBtn.classList.add('hidden');
+          }
+        }
+      };
+      
+      container.querySelectorAll('.bulk-test-cb').forEach(cb => {
+        cb.onchange = updateBulkBtn;
+      });
+
+      if (bulkPayBtn) {
+        bulkPayBtn.onclick = () => {
+          const pendingChecked = Array.from(container.querySelectorAll('.bulk-test-cb:checked')).filter(cb => cb.dataset.paid === "false");
+          const ids = pendingChecked.map(cb => cb.dataset.id);
+          if (ids.length === 0) return;
+          currentTestIdsForPayment = ids;
+          currentPatientId = patientId;
+          paymentDateModal.classList.remove("hidden");
+          payDateInput.value = new Date().toISOString().split("T")[0];
+          billNumberInput.value = "";
+        };
+      }
+
+      if (bulkRevertBtn) {
+        bulkRevertBtn.onclick = () => {
+          const paidChecked = Array.from(container.querySelectorAll('.bulk-test-cb:checked')).filter(cb => cb.dataset.paid === "true");
+          const ids = paidChecked.map(cb => cb.dataset.id);
+          if (ids.length === 0) return;
+          
+          showConfirm("Revert Payments?", `Are you sure you want to mark ${ids.length} test(s) as Pending?`, async () => {
+            showLoading(true);
+            try {
+              const pName = getPatientName(patientId);
+              const updatePromises = ids.map(async id => {
+                await (await supabase.from(getTable("tests"))).update(id, { paid: false, payment_date: null, bill_number: null });
+              });
+              await Promise.all(updatePromises);
+              
+              const testsToRevert = allTests.filter(t => ids.includes(String(t.id || t.ID || t.test_id)));
+              const testNames = testsToRevert.map(t => t.test_name).join(", ");
+              await addLog("Payment", "Reverted", testNames || `${ids.length} Tests`, `For: ${pName}`);
+              
+              await loadTests(patientId);
+              await loadPatients();
+              if (!paymentView.classList.contains("hidden")) await loadPayments();
+              showToast(`Reverted ${ids.length} test(s) to Pending`, "info");
+            } catch (e) {
+              console.error(e);
+              showToast("Error reverting payments", "error");
+            } finally {
+              showLoading(false);
+            }
+          }, false);
+        };
+      }
+    }
+
   } catch (err) { 
     console.error(err);
     container.innerHTML = `<div class="no-tests">Error loading tests</div>`; 
@@ -731,7 +815,7 @@ async function loadTests(patientId) {
 async function togglePaymentStatus(id, patientId, currentPaid) {
   if (!currentPaid) {
     // Switching to Paid: Show Modal
-    currentTestIdForPayment = id;
+    currentTestIdsForPayment = [id];
     currentPatientId = patientId;
     paymentDateModal.classList.remove("hidden");
     payDateInput.value = new Date().toISOString().split("T")[0]; // Default today
@@ -739,13 +823,23 @@ async function togglePaymentStatus(id, patientId, currentPaid) {
 
   } else {
     // Switching back to Pending
+    showLoading(true);
     try {
-      await (await supabase.from(getTable("tests"))).update(id, { paid: false, payment_date: null });
+      await (await supabase.from(getTable("tests"))).update(id, { paid: false, payment_date: null, bill_number: null });
+      const test = allTests.find(t => String(t.id || t.ID || t.test_id) === String(id));
+      const testName = test ? test.test_name : "Test";
+      const pName = getPatientName(patientId);
+      await addLog("Payment", "Reverted", testName, `For: ${pName}`);
+      
       await loadTests(patientId);
       await loadPatients();
       if (!paymentView.classList.contains("hidden")) await loadPayments();
       showToast("Marked as Pending", "info");
-    } catch (e) { showToast("Update failed", "error"); }
+    } catch (e) { 
+      showToast("Update failed", "error"); 
+    } finally {
+      showLoading(false);
+    }
   }
 }
 
@@ -762,24 +856,28 @@ confirmPaymentBtn.onclick = async () => {
   
   try {
     const billNum = billNumberInput.value.trim();
-    // Get test name from local state for log
-    const test = allTests.find(t => t.id == currentTestIdForPayment);
-    const testName = test ? test.test_name : "Test";
     const pName = getPatientName(currentPatientId);
 
-    await (await supabase.from(getTable("tests"))).update(currentTestIdForPayment, { 
-      paid: true, 
-      payment_date: date,
-      bill_number: billNum || null
+    const updatePromises = currentTestIdsForPayment.map(async id => {
+      await (await supabase.from(getTable("tests"))).update(id, { 
+        paid: true, 
+        payment_date: date,
+        bill_number: billNum || null
+      });
     });
 
-    await addLog("Payment", "Paid", testName, `For: ${pName}${billNum ? ' | Bill: '+billNum : ''}`);
+    await Promise.all(updatePromises);
+
+    const tests = allTests.filter(t => currentTestIdsForPayment.includes(String(t.id || t.ID || t.test_id)));
+    const testNames = tests.map(t => t.test_name).join(", ");
+
+    await addLog("Payment", "Paid", testNames || `${currentTestIdsForPayment.length} Tests`, `For: ${pName}${billNum ? ' | Bill: '+billNum : ''}`);
     
     paymentDateModal.classList.add("hidden");
     await loadTests(currentPatientId);
     await loadPatients();
     if (!paymentView.classList.contains("hidden")) await loadPayments();
-    showToast("Payment Received", "success");
+    showToast(`Payment Received for ${currentTestIdsForPayment.length} test(s)`, "success");
   } catch (e) {
     console.error(e);
     showToast("Error updating payment", "error");
