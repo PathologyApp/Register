@@ -1309,6 +1309,8 @@ generateReportBtn.onclick = () => generateReport();
 
 
 
+let currentReportTests = [];
+
 function generateReport() {
   const type = reportType.value;
   let periodTests = [];
@@ -1317,8 +1319,17 @@ function generateReport() {
     const month = parseInt(reportMonth.value);
     const year = parseInt(reportYear.value);
     periodTests = allTests.filter(t => {
-      const d = new Date(t.test_date);
-      return d.getMonth() === month && d.getFullYear() === year;
+      // Pending if created in this month and not paid
+      const dTest = new Date(t.test_date);
+      const isPendingThisMonth = dTest.getMonth() === month && dTest.getFullYear() === year && !t.paid;
+      
+      // Collected if payment_date is in this month
+      let isCollectedThisMonth = false;
+      if (t.paid && t.payment_date) {
+        const dPay = new Date(t.payment_date);
+        isCollectedThisMonth = dPay.getMonth() === month && dPay.getFullYear() === year;
+      }
+      return isPendingThisMonth || isCollectedThisMonth;
     });
   } else {
     const targetDate = reportDate.value;
@@ -1326,8 +1337,14 @@ function generateReport() {
       showToast("Please select a date", "info");
       return;
     }
-    periodTests = allTests.filter(t => t.test_date === targetDate);
+    periodTests = allTests.filter(t => {
+      const isPendingToday = t.test_date === targetDate && !t.paid;
+      const isCollectedToday = t.paid && t.payment_date === targetDate;
+      return isPendingToday || isCollectedToday;
+    });
   }
+
+  currentReportTests = periodTests;
 
   if (periodTests.length === 0) {
     reportContent.innerHTML = `<div class="empty-state">No activity recorded for this period.</div>`;
@@ -1466,7 +1483,7 @@ async function exportToCSV() {
   showLoading(true);
   try {
     const patients = allPatients;
-    const tests = allTests;
+    const tests = currentReportTests && currentReportTests.length > 0 ? currentReportTests : allTests;
     
     let csv = "Patient Name,Age,Gender,Admission Date,Referred By,Test Name,Amount,Status,Payment Date,Bill Number\n";
     
