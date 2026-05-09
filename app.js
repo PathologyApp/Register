@@ -169,6 +169,8 @@ const editTestPid        = document.getElementById("editTestPid");
 const etNameInput        = document.getElementById("etName");
 const etAmountInput      = document.getElementById("etAmount");
 const etDateInput        = document.getElementById("etDate");
+const etPaymentDateGroup = document.getElementById("etPaymentDateGroup");
+const etPaymentDateInput = document.getElementById("etPaymentDate");
 const etBillNumberInput  = document.getElementById("etBillNumber");
 const saveEditTestBtn    = document.getElementById("saveEditTest");
 
@@ -657,6 +659,16 @@ async function loadTests(patientId) {
       container.innerHTML = `<div class="no-tests">No tests added yet</div>`;
       return;
     }
+    
+    const header = document.createElement("div");
+    header.style = "display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid var(--border);";
+    header.innerHTML = `
+      <span style="font-size:12px; font-weight:600; color:var(--text-2); text-transform:uppercase; letter-spacing:0.5px;">Test List</span>
+      <label style="font-size:12px; cursor:pointer; display:flex; align-items:center; gap:5px; color:var(--text-2); font-weight:500;" title="Select all tests">
+        <input type="checkbox" id="select-all-${patientId}" style="cursor:pointer; width:14px; height:14px;"> Select All
+      </label>
+    `;
+    container.appendChild(header);
     pTests.forEach(t => {
       const div = document.createElement("div");
       div.className = "test-item";
@@ -755,8 +767,29 @@ async function loadTests(patientId) {
       };
       
       container.querySelectorAll('.bulk-test-cb').forEach(cb => {
-        cb.onchange = updateBulkBtn;
+        cb.onchange = () => {
+          updateBulkBtn();
+          const selectAllCb = document.getElementById(`select-all-${patientId}`);
+          if (selectAllCb) {
+             const allCbs = container.querySelectorAll('.bulk-test-cb');
+             const allChecked = Array.from(allCbs).every(c => c.checked);
+             const someChecked = Array.from(allCbs).some(c => c.checked);
+             selectAllCb.checked = allChecked;
+             selectAllCb.indeterminate = someChecked && !allChecked;
+          }
+        };
       });
+      
+      const selectAllCb = document.getElementById(`select-all-${patientId}`);
+      if (selectAllCb) {
+        selectAllCb.onchange = (e) => {
+          const isChecked = e.target.checked;
+          container.querySelectorAll('.bulk-test-cb').forEach(cb => {
+            cb.checked = isChecked;
+          });
+          updateBulkBtn();
+        };
+      }
 
       if (bulkPayBtn) {
         bulkPayBtn.onclick = () => {
@@ -934,6 +967,13 @@ async function openEditTestModal(id, pid) {
   etDateInput.value = test.test_date;
   etBillNumberInput.value = test.bill_number || "";
   
+  if (test.paid) {
+    etPaymentDateGroup.classList.remove("hidden");
+    etPaymentDateInput.value = test.payment_date || test.test_date;
+  } else {
+    etPaymentDateGroup.classList.add("hidden");
+  }
+  
   editTestModal.classList.remove("hidden");
 }
 
@@ -959,12 +999,22 @@ saveEditTestBtn.onclick = async () => {
     if (old.amount != amount) diff.push(`₹${old.amount} → ₹${amount}`);
     if (old.bill_number != billNumber) diff.push(`Bill: ${old.bill_number || "None"} → ${billNumber || "None"}`);
 
-    await (await supabase.from(getTable("tests"))).update(id, {
+    const payload = {
       test_name: name,
       amount: amount,
       test_date: date,
       bill_number: billNumber || null
-    });
+    };
+
+    if (!etPaymentDateGroup.classList.contains("hidden")) {
+      const pDate = etPaymentDateInput.value;
+      if (pDate) {
+        payload.payment_date = pDate;
+        if (old.payment_date !== pDate) diff.push(`Paid Date: ${old.payment_date || "N/A"} → ${pDate}`);
+      }
+    }
+
+    await (await supabase.from(getTable("tests"))).update(id, payload);
 
     await addLog("Test", "Updated", name, diff.join(", "));
     showToast("Test updated", "success");
@@ -1319,17 +1369,21 @@ function generateReport() {
     const month = parseInt(reportMonth.value);
     const year = parseInt(reportYear.value);
     periodTests = allTests.filter(t => {
-      // Pending if created in this month and not paid
       const dTest = new Date(t.test_date);
-      const isPendingThisMonth = dTest.getMonth() === month && dTest.getFullYear() === year && !t.paid;
+      const testInPeriod = dTest.getMonth() === month && dTest.getFullYear() === year;
       
-      // Collected if payment_date is in this month
-      let isCollectedThisMonth = false;
+      let dPay = null;
+      let payInPeriod = false;
+      let payAfterPeriod = false;
+      
       if (t.paid && t.payment_date) {
-        const dPay = new Date(t.payment_date);
-        isCollectedThisMonth = dPay.getMonth() === month && dPay.getFullYear() === year;
+        dPay = new Date(t.payment_date);
+        payInPeriod = dPay.getMonth() === month && dPay.getFullYear() === year;
+        payAfterPeriod = dPay.getFullYear() > year || (dPay.getFullYear() === year && dPay.getMonth() > month);
       }
-      return isPendingThisMonth || isCollectedThisMonth;
+      
+      const isPendingThisMonth = testInPeriod && (!t.paid || payAfterPeriod);
+      return isPendingThisMonth || payInPeriod;
     });
   } else {
     const targetDate = reportDate.value;
@@ -1338,9 +1392,12 @@ function generateReport() {
       return;
     }
     periodTests = allTests.filter(t => {
-      const isPendingToday = t.test_date === targetDate && !t.paid;
-      const isCollectedToday = t.paid && t.payment_date === targetDate;
-      return isPendingToday || isCollectedToday;
+      const testInPeriod = t.test_date === targetDate;
+      const payInPeriod = t.paid && t.payment_date === targetDate;
+      const payAfterPeriod = t.paid && t.payment_date > targetDate;
+      
+      const isPendingToday = testInPeriod && (!t.paid || payAfterPeriod);
+      return isPendingToday || payInPeriod;
     });
   }
 
@@ -1359,7 +1416,19 @@ function generateReport() {
 
   periodTests.forEach(t => {
     const amt = parseFloat(t.amount) || 0;
-    if (t.paid) totalCollected += amt;
+    
+    // Determine if it was collected in THIS specific period
+    let collectedInPeriod = false;
+    if (type === "monthly") {
+        if (t.paid && t.payment_date) {
+           const dPay = new Date(t.payment_date);
+           collectedInPeriod = dPay.getMonth() === parseInt(reportMonth.value) && dPay.getFullYear() === parseInt(reportYear.value);
+        }
+    } else {
+        collectedInPeriod = t.paid && t.payment_date === reportDate.value;
+    }
+
+    if (collectedInPeriod) totalCollected += amt;
     else totalPending += amt;
 
     testCounts[t.test_name] = (testCounts[t.test_name] || 0) + 1;
@@ -1376,7 +1445,8 @@ function generateReport() {
     }
     const group = patientGroups[t.patient_id];
     group.tests.push(t.test_name);
-    if (t.paid) group.collected += amt;
+    
+    if (collectedInPeriod) group.collected += amt;
     else group.pending += amt;
   });
 
