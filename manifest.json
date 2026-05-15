@@ -1,0 +1,17 @@
+{
+  "name": "Pathology Register",
+  "short_name": "Pathology",
+  "description": "Secure patient & test record management system.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f0f4ff",
+  "theme_color": "#4f6ef7",
+  "icons": [
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
