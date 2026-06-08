@@ -300,7 +300,8 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
   padding: 12px 20px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: white;
+  background: var(--surface);
+  color: var(--text);
   font-size: 15px;
   transition: all 0.2s;
 }
@@ -310,9 +311,9 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
   padding: 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: white;
+  background: var(--surface);
   font-family: inherit;
-  color: var(--text-2);
+  color: var(--text);
 }
 
 .sort-container {
@@ -325,10 +326,10 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
   padding: 10px 15px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: white;
+  background: var(--surface);
   font-weight: 500;
   cursor: pointer;
-  color: var(--text-2);
+  color: var(--text);
   font-size: 13px;
 }
 
@@ -358,7 +359,7 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
 .pagination-btn {
   padding: 8px 16px;
   border: 1px solid var(--border);
-  background: white;
+  background: var(--surface);
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
@@ -501,7 +502,7 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
   align-items: center;
   justify-content: space-between;
   padding: 12px;
-  background: white;
+  background: var(--surface);
   border-radius: var(--radius-sm);
   margin-bottom: 8px;
   border: 1px solid var(--border);
@@ -545,7 +546,7 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
   font-size: 13px;
 }
 .test-date { color: var(--text-3); font-size: 12px; }
-.test-bill { color: var(--text-2); font-size: 11px; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-weight: 500; }
+.test-bill { color: var(--text-2); font-size: 11px; background: var(--surface2); padding: 1px 6px; border-radius: 4px; font-weight: 500; }
 
 .card-actions {
   display: flex;
@@ -635,7 +636,8 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 .modal-content {
-  background: white;
+  background: var(--surface);
+  color: var(--text);
   width: 100%;
   max-width: 480px;
   border-radius: 24px 24px 0 0;
@@ -768,7 +770,7 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
   top: 100%;
   left: 0;
   right: 0;
-  background: white;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   margin-top: 4px;
@@ -1096,7 +1098,7 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
 }
 
 .payment-card {
-  background: white;
+  background: var(--surface);
   border-radius: var(--radius);
   padding: 18px;
   margin-bottom: 12px;
@@ -1139,7 +1141,7 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
 /* ── Sub Tabs (Payments) ─────────────────────────────── */
 .sub-tabs {
   display: flex;
-  background: white;
+  background: var(--surface);
   padding: 5px;
   border-radius: 12px;
   border: 1.5px solid var(--border);
@@ -1272,7 +1274,8 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   font-size: 13px;
-  background: white;
+  background: var(--surface);
+  color: var(--text);
 }
 
 .confirm-modal {
@@ -1352,7 +1355,7 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
 
 /* ── Phase 2 Reports & Exports ─────────────────────────── */
 .reports-controls {
-  background: white;
+  background: var(--surface);
   padding: 25px;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
@@ -1420,9 +1423,9 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
 }
 
 #exportCSVBtn {
-  background: #f8fafc;
-  color: #64748b;
-  border: 1.5px solid #e2e8f0;
+  background: var(--surface2);
+  color: var(--text-2);
+  border: 1.5px solid var(--border);
   padding: 10px 20px;
   border-radius: 10px;
   font-size: 13px;
@@ -1773,14 +1776,15 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
 
 .tutorial-card {
   position: absolute;
-  background: white;
+  background: var(--surface);
+  color: var(--text);
   width: 320px;
   padding: 24px;
   border-radius: 20px;
   box-shadow: 0 20px 50px rgba(0,0,0,0.3);
   z-index: 10002;
   transition: all 0.4s ease;
-  border: 1px solid rgba(0,0,0,0.1);
+  border: 1px solid var(--border);
 }
 
 .tutorial-header {
@@ -1865,7 +1869,7 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
 }
 
 .mode-card {
-  background: white;
+  background: var(--surface);
   padding: 40px 30px;
   border-radius: 24px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.05);
