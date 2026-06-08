@@ -1380,6 +1380,7 @@ reportsTab.onclick = () => {
   patientsTab.classList.remove("active");
   paymentsTab.classList.remove("active");
   logsTab.classList.remove("active");
+  if (typeof renderAnalytics === "function") renderAnalytics();
 };
 
 
@@ -2029,3 +2030,147 @@ if ("serviceWorker" in navigator) {
       .catch((err) => console.error("PWA: Service Worker Registration Failed", err));
   });
 }
+
+// ── Theme & Analytics Dashboard ──────────────────────────────────────────
+
+// Theme Toggle Logic
+const themeToggleBtn = document.getElementById("themeToggleBtn");
+if (themeToggleBtn) {
+  const savedTheme = localStorage.getItem("theme");
+  if (savedTheme === "dark") {
+    document.body.setAttribute("data-theme", "dark");
+  }
+  themeToggleBtn.onclick = () => {
+    const isDark = document.body.getAttribute("data-theme") === "dark";
+    if (isDark) {
+      document.body.removeAttribute("data-theme");
+      localStorage.setItem("theme", "light");
+    } else {
+      document.body.setAttribute("data-theme", "dark");
+      localStorage.setItem("theme", "dark");
+    }
+    if (!reportsView.classList.contains("hidden") && typeof renderAnalytics === "function") {
+      renderAnalytics();
+    }
+  };
+}
+
+// Chart Instances
+let revenueChartInstance = null;
+let topTestsChartInstance = null;
+
+function renderAnalytics() {
+  if (!window.Chart) return;
+
+  const isDark = document.body.getAttribute("data-theme") === "dark";
+  const textColor = isDark ? '#e0e0e0' : '#333333';
+  const gridColor = isDark ? '#333333' : '#eeeeee';
+
+  // 1. Revenue Chart Logic
+  const revSelect = document.getElementById("revenueWeekSelect")?.value || "last7";
+  const today = new Date();
+  let daysArray = [];
+  
+  if (revSelect === "last7") {
+    for (let i = 6; i >= 0; i--) {
+      let d = new Date();
+      d.setDate(today.getDate() - i);
+      daysArray.push(d.toISOString().split('T')[0]);
+    }
+  } else if (revSelect === "prevWeek") {
+    let lastSun = new Date();
+    lastSun.setDate(today.getDate() - today.getDay());
+    for (let i = 6; i >= 0; i--) {
+      let d = new Date(lastSun);
+      d.setDate(lastSun.getDate() - i);
+      daysArray.push(d.toISOString().split('T')[0]);
+    }
+  } else if (revSelect === "last30") {
+    for (let i = 29; i >= 0; i--) {
+      let d = new Date();
+      d.setDate(today.getDate() - i);
+      daysArray.push(d.toISOString().split('T')[0]);
+    }
+  }
+
+  const revenueData = daysArray.map(dateStr => {
+    let dailyTotal = 0;
+    allTests.forEach(t => {
+      if (t.test_date === dateStr) {
+        dailyTotal += parseFloat(t.amount) || 0;
+      }
+    });
+    return dailyTotal;
+  });
+
+  const displayLabels = daysArray.map(d => formatDate(d));
+
+  const ctxRev = document.getElementById("revenueChart").getContext("2d");
+  if (revenueChartInstance) revenueChartInstance.destroy();
+  revenueChartInstance = new Chart(ctxRev, {
+    type: 'line',
+    data: {
+      labels: displayLabels,
+      datasets: [{
+        label: 'Revenue (₹)',
+        data: revenueData,
+        borderColor: '#2d7ff9',
+        backgroundColor: 'rgba(45, 127, 249, 0.1)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.3,
+        pointBackgroundColor: '#2d7ff9'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: textColor } } },
+      scales: {
+        x: { ticks: { color: textColor }, grid: { color: gridColor } },
+        y: { ticks: { color: textColor }, grid: { color: gridColor }, beginAtZero: true }
+      }
+    }
+  });
+
+  // 2. Top Tests Logic
+  const topPeriod = document.getElementById("topTestsPeriodSelect")?.value || "month";
+  let testCounts = {};
+  
+  allTests.forEach(t => {
+    const tDate = new Date(t.test_date);
+    if (topPeriod === "month" && (tDate.getMonth() !== today.getMonth() || tDate.getFullYear() !== today.getFullYear())) {
+      return;
+    }
+    testCounts[t.test_name] = (testCounts[t.test_name] || 0) + 1;
+  });
+
+  const sortedTests = Object.entries(testCounts).sort((a,b) => b[1] - a[1]).slice(0, 5);
+  const topLabels = sortedTests.map(s => s[0]);
+  const topData = sortedTests.map(s => s[1]);
+
+  const ctxTop = document.getElementById("topTestsChart").getContext("2d");
+  if (topTestsChartInstance) topTestsChartInstance.destroy();
+  topTestsChartInstance = new Chart(ctxTop, {
+    type: 'doughnut',
+    data: {
+      labels: topLabels.length > 0 ? topLabels : ["No Data"],
+      datasets: [{
+        data: topData.length > 0 ? topData : [1],
+        backgroundColor: topData.length > 0 ? ['#2d7ff9', '#ff9800', '#4caf50', '#f44336', '#9c27b0'] : ['#e0e0e0'],
+        borderWidth: 1,
+        borderColor: isDark ? '#1e1e1e' : '#ffffff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'right', labels: { color: textColor } } }
+    }
+  });
+}
+
+const revSel = document.getElementById("revenueWeekSelect");
+if (revSel) revSel.onchange = renderAnalytics;
+const topSel = document.getElementById("topTestsPeriodSelect");
+if (topSel) topSel.onchange = renderAnalytics;
