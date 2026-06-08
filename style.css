@@ -51,7 +51,7 @@ body {
 }
 
 .auth-card {
-  background: white;
+  background: var(--surface);
   border-radius: 24px;
   padding: 48px 40px;
   text-align: center;
@@ -84,7 +84,7 @@ body {
   padding: 13px 20px;
   border: 2px solid var(--border);
   border-radius: var(--radius-sm);
-  background: white;
+  background: var(--surface);
   color: var(--text);
   font-size: 15px;
   font-weight: 600;
@@ -427,12 +427,12 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
 .patient-id-badge {
   font-size: 10px;
   font-weight: 800;
-  background: var(--text);
+  background: var(--primary);
   color: white;
   padding: 2px 6px;
   border-radius: var(--radius-xs);
   margin-right: 8px;
-  opacity: 0.8;
+  opacity: 0.9;
   vertical-align: middle;
 }
 
@@ -952,15 +952,15 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
 }
 
 .summary-card.pending {
-  background: #fff1f2;
+  background: var(--surface);
   color: #e11d48;
-  border: 1px solid #fecdd3;
+  border: 1px solid var(--border);
 }
 
 .summary-card.paid {
-  background: #f0fdf4;
+  background: var(--surface);
   color: #16a34a;
-  border: 1px solid #bbf7d0;
+  border: 1px solid var(--border);
 }
 
 .payment-section h3 {
