@@ -984,7 +984,7 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
 
 /* ── Reports View ─────────────────────────────────────── */
 .report-controls {
-  background: white;
+  background: var(--surface);
   padding: 20px;
   border-radius: var(--radius);
   margin-bottom: 25px;
@@ -1034,7 +1034,7 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
 
 .report-table-container {
   overflow-x: auto;
-  background: white;
+  background: var(--surface);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   margin-bottom: 30px;
@@ -1059,7 +1059,8 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
 
 .report-table td {
   padding: 15px;
-  border-bottom: 1px solid var(--surface2);
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
 }
 
 .report-table tr:last-child td { border-bottom: none; }
@@ -1447,7 +1448,7 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
 }
 
 .summary-card {
-  background: white;
+  background: var(--surface);
   padding: 20px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
