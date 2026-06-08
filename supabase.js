@@ -21,11 +21,32 @@ export const supabase = {
         return await res.json();
       },
       async select(query = "*") {
-        const res = await fetch(`${baseUrl}?select=${query}`, {
-          method: "GET",
-          headers
-        });
-        return await res.json();
+        let allData = [];
+        let offset = 0;
+        const limit = 1000;
+        
+        while (true) {
+          const res = await fetch(`${baseUrl}?select=${query}`, {
+            method: "GET",
+            headers: { 
+              ...headers, 
+              "Range-Unit": "items", 
+              "Range": `${offset}-${offset + limit - 1}` 
+            }
+          });
+          
+          if (!res.ok) {
+            const errText = await res.text();
+            throw new Error(errText || "Select failed");
+          }
+          
+          const chunk = JSON.parse(await res.text());
+          allData = allData.concat(chunk);
+          
+          if (chunk.length < limit) break;
+          offset += limit;
+        }
+        return allData;
       },
       async delete(id, column = "id") {
         if (!id || id === "undefined") throw new Error("Invalid ID for deletion");
