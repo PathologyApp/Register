@@ -1797,71 +1797,89 @@ async function generateInvoice(patientId) {
     const invoiceCont = document.getElementById("invoiceContainer");
     
     invoiceCont.innerHTML = `
-      <div class="invoice-page-meta">
-        <span class="invoice-page-title">Pathology Laboratory</span>
-        <span class="invoice-patient-sn">#${p.id}</span>
-      </div>
-
-      <div class="invoice-letterhead-space"></div>
-
-      <div class="invoice-divider"></div>
-
-      <div class="invoice-title-row">
-        <span></span>
-        <div class="invoice-title">
-          <h2>INVOICE</h2>
-          <p>Date: ${new Date().toLocaleDateString()}</p>
-        </div>
-      </div>
-
-      <div class="patient-info-block">
-        <div class="info-item">
-          <label>Patient Name</label>
-          <span>${p.name}</span>
-        </div>
-        <div class="info-item">
-          <label>Age / Gender</label>
-          <span>${p.age} Years / ${p.gender}</span>
-        </div>
-        <div class="info-item">
-          <label>Admission Date</label>
-          <span>${formatDate(p.admission_date)}</span>
-        </div>
-        <div class="info-item">
-          <label>Referred By</label>
-          <span>${p.referred_by || "Self"}</span>
-        </div>
-      </div>
-
-      <table class="invoice-table">
+      <table class="print-layout-table">
         <thead>
           <tr>
-            <th>Test Description</th>
-            <th>Test Date</th>
-            <th>Bill No.</th>
-            <th>Status</th>
-            <th style="text-align:right">Price</th>
+            <td>
+              <div class="invoice-letterhead-space"></div>
+            </td>
           </tr>
         </thead>
         <tbody>
-          ${tests.map(t => `
-            <tr>
-              <td>${t.test_name}</td>
-              <td>${formatDate(t.test_date)}</td>
-              <td>${t.bill_number || "—"}</td>
-              <td>${t.paid ? "Paid" : "Pending"}</td>
-              <td style="text-align:right">₹${t.amount}</td>
-            </tr>
-          `).join('')}
+          <tr>
+            <td>
+              <div class="invoice-divider"></div>
+
+              <div class="invoice-page-meta">
+                <span class="invoice-page-title">Pathology Laboratory</span>
+                <span class="invoice-patient-sn">#${p.id}</span>
+              </div>
+
+              <div class="invoice-title-row">
+                <span></span>
+                <div class="invoice-title">
+                  <h2>INVOICE</h2>
+                  <p>Date: ${new Date().toLocaleDateString()}</p>
+                </div>
+              </div>
+
+              <div class="patient-info-block">
+                <div class="info-item">
+                  <label>Patient Name</label>
+                  <span>${p.name}</span>
+                </div>
+                <div class="info-item">
+                  <label>Age / Gender</label>
+                  <span>${p.age} Years / ${p.gender}</span>
+                </div>
+                <div class="info-item">
+                  <label>Admission Date</label>
+                  <span>${formatDate(p.admission_date)}</span>
+                </div>
+                <div class="info-item">
+                  <label>Referred By</label>
+                  <span>${p.referred_by || "Self"}</span>
+                </div>
+              </div>
+
+              <table class="invoice-table">
+                <thead>
+                  <tr>
+                    <th>Test Description</th>
+                    <th>Test Date</th>
+                    <th>Bill No.</th>
+                    <th>Status</th>
+                    <th style="text-align:right">Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${tests.map(t => `
+                    <tr>
+                      <td>${t.test_name}</td>
+                      <td>${formatDate(t.test_date)}</td>
+                      <td>${t.bill_number || "—"}</td>
+                      <td>${t.paid ? "Paid" : "Pending"}</td>
+                      <td style="text-align:right">₹${t.amount}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+
+              <div class="invoice-total-row">
+                <span class="total-label">Grand Total</span>
+                <span class="total-value">₹${total}</span>
+              </div>
+            </td>
+          </tr>
         </tbody>
+        <tfoot>
+          <tr>
+            <td>
+              <div class="invoice-footer-space"></div>
+            </td>
+          </tr>
+        </tfoot>
       </table>
-
-      <div class="invoice-total-row">
-        <span class="total-label">Grand Total</span>
-        <span class="total-value">₹${total}</span>
-      </div>
-
-      <div class="invoice-footer"></div>
     `;
     
     window.print();
