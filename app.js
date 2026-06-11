@@ -1799,7 +1799,7 @@ async function generateInvoice(patientId) {
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const dd = String(d.getDate()).padStart(2, '0');
     const yyyy = d.getFullYear();
-    const invoiceDate = `${mm}/${dd}/${yyyy}`;
+    const invoiceDate = `${dd}/${mm}/${yyyy}`;
     
     invoiceCont.innerHTML = `
       <table class="print-layout-table">
