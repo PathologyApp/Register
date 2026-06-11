@@ -1797,11 +1797,17 @@ async function generateInvoice(patientId) {
     const invoiceCont = document.getElementById("invoiceContainer");
     
     invoiceCont.innerHTML = `
-      <div class="invoice-header">
-        <div class="lab-info">
-          <h1>PATHOLOGY LABORATORY</h1>
-          <p>Professional Diagnostic Services</p>
-        </div>
+      <div class="invoice-page-meta">
+        <span class="invoice-page-title">Pathology Laboratory</span>
+        <span class="invoice-patient-sn">#${p.id}</span>
+      </div>
+
+      <div class="invoice-letterhead-space"></div>
+
+      <div class="invoice-divider"></div>
+
+      <div class="invoice-title-row">
+        <span></span>
         <div class="invoice-title">
           <h2>INVOICE</h2>
           <p>Date: ${new Date().toLocaleDateString()}</p>
@@ -1809,10 +1815,6 @@ async function generateInvoice(patientId) {
       </div>
 
       <div class="patient-info-block">
-        <div class="info-item">
-          <label>Patient ID / SN</label>
-          <span>#${p.id}</span>
-        </div>
         <div class="info-item">
           <label>Patient Name</label>
           <span>${p.name}</span>
@@ -1859,10 +1861,7 @@ async function generateInvoice(patientId) {
         <span class="total-value">₹${total}</span>
       </div>
 
-      <div class="invoice-footer">
-        <p>This is a computer-generated invoice and does not require a signature.</p>
-        <p>Thank you for choosing our services.</p>
-      </div>
+      <div class="invoice-footer"></div>
     `;
     
     window.print();
