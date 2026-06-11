@@ -1795,6 +1795,11 @@ async function generateInvoice(patientId) {
     
     const total = tests.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
     const invoiceCont = document.getElementById("invoiceContainer");
+    const d = new Date();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    const invoiceDate = `${mm}/${dd}/${yyyy}`;
     
     invoiceCont.innerHTML = `
       <table class="print-layout-table">
@@ -1819,7 +1824,7 @@ async function generateInvoice(patientId) {
                 <span></span>
                 <div class="invoice-title">
                   <h2>INVOICE</h2>
-                  <p>Date: ${new Date().toLocaleDateString()}</p>
+                  <p>Date: ${invoiceDate}</p>
                 </div>
               </div>
 
