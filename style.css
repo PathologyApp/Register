@@ -982,6 +982,27 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
   padding: 2px 6px;
   border-radius: 4px;
   font-weight: 600;
+  margin-top: 4px;
+  display: inline-block;
+}
+
+.test-conducted-date {
+  font-size: 11px;
+  color: var(--text-2);
+  margin-top: 4px;
+  display: inline-block;
+  font-weight: 500;
+}
+
+.payment-filters {
+  display: flex;
+  gap: 15px;
+  align-items: flex-end;
+  margin-bottom: 20px;
+  background: var(--surface);
+  padding: 15px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
 }
 
 /* ── Reports View ─────────────────────────────────────── */
@@ -1572,11 +1593,11 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
 }
 
 .invoice-letterhead-space {
-  height: 255px; 
+  height: 250px; 
 }
 
 .invoice-footer-space {
-  height: 180px; 
+  height: 120px; 
 }
 
 /* Invoice: top meta row (title left, patient SN right) */

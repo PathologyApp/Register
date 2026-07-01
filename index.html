@@ -8,7 +8,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=2.4"/>
+  <link rel="stylesheet" href="style.css?v=2.5"/>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#4f6ef7">
   <meta name="mobile-web-app-capable" content="yes">
@@ -124,6 +124,18 @@
         <div class="sub-tabs">
           <button id="pendingSubTab" class="sub-tab active">⏳ Pending</button>
           <button id="paidSubTab" class="sub-tab">✅ Collected</button>
+        </div>
+
+        <div class="payment-filters">
+          <div class="filter-group">
+            <label for="paymentTestDateFilter">Test Date</label>
+            <input type="date" id="paymentTestDateFilter" />
+          </div>
+          <div class="filter-group hidden" id="paymentPaidDateGroup">
+            <label for="paymentPaidDateFilter">Paid Date</label>
+            <input type="date" id="paymentPaidDateFilter" />
+          </div>
+          <button id="clearPaymentFiltersBtn" class="btn-secondary" style="padding: 6px 12px; font-size: 12px; margin-top: 18px;">Clear Filters</button>
         </div>
 
         <div id="pendingSection" class="payment-section">

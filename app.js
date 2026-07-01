@@ -1626,7 +1626,14 @@ async function loadPayments() {
   
   try {
     const patients = await (await supabase.from(getTable("patients"))).select();
-    const tests = await (await supabase.from(getTable("tests"))).select();
+    let tests = await (await supabase.from(getTable("tests"))).select();
+    
+    const testDateFilter = document.getElementById('paymentTestDateFilter').value;
+    const paidDateFilter = document.getElementById('paymentPaidDateFilter').value;
+    
+    if (testDateFilter) {
+      tests = tests.filter(t => t.test_date === testDateFilter);
+    }
     
     const pendingPatients = [];
     const paidPatients = [];
@@ -1635,7 +1642,11 @@ async function loadPayments() {
 
     patients.forEach(p => {
       const pPendingTests = tests.filter(t => t.patient_id == p.id && !t.paid);
-      const pPaidTests = tests.filter(t => t.patient_id == p.id && t.paid);
+      let pPaidTests = tests.filter(t => t.patient_id == p.id && t.paid);
+
+      if (paidDateFilter) {
+        pPaidTests = pPaidTests.filter(t => t.payment_date === paidDateFilter);
+      }
 
       if (pPendingTests.length > 0) {
         const total = pPendingTests.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
@@ -1685,6 +1696,7 @@ pendingSubTab.onclick = () => {
   paidSubTab.classList.remove("active");
   pendingSection.classList.remove("hidden");
   paidSection.classList.add("hidden");
+  document.getElementById('paymentPaidDateGroup').classList.add("hidden");
 };
 
 paidSubTab.onclick = () => {
@@ -1692,7 +1704,27 @@ paidSubTab.onclick = () => {
   pendingSubTab.classList.remove("active");
   paidSection.classList.remove("hidden");
   pendingSection.classList.add("hidden");
+  document.getElementById('paymentPaidDateGroup').classList.remove("hidden");
 };
+
+document.getElementById('paymentTestDateFilter').addEventListener('change', () => {
+  currentPendingPage = 1;
+  currentPaidPage = 1;
+  loadPayments();
+});
+
+document.getElementById('paymentPaidDateFilter').addEventListener('change', () => {
+  currentPaidPage = 1;
+  loadPayments();
+});
+
+document.getElementById('clearPaymentFiltersBtn').addEventListener('click', () => {
+  document.getElementById('paymentTestDateFilter').value = '';
+  document.getElementById('paymentPaidDateFilter').value = '';
+  currentPendingPage = 1;
+  currentPaidPage = 1;
+  loadPayments();
+});
 
 function renderPaymentList(container, data, mode) {
   container.innerHTML = "";
@@ -1723,7 +1755,8 @@ function renderPaymentList(container, data, mode) {
           <div class="pending-test-item">
             <div style="display:flex; flex-direction:column;">
               <span class="pending-test-name">${t.test_name}</span>
-              ${t.payment_date ? `<span class="collection-date">Paid on ${formatDate(t.payment_date)}</span>` : ""}
+              <span class="test-conducted-date">Test Date: ${formatDate(t.test_date)}</span>
+              ${t.payment_date && mode === 'paid' ? `<span class="collection-date">Paid on: ${formatDate(t.payment_date)}</span>` : ""}
             </div>
             <span class="pending-test-price">₹${t.amount || 0}</span>
           </div>
