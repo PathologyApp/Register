@@ -635,6 +635,25 @@ function buildPatientCard(id, p, total, paidAmt = 0, pendingAmt = 0) {
     </div>`;
 
 
+  // Tooltip: use position:fixed to escape parent overflow:hidden
+  const wrap = card.querySelector('.patient-total-wrap');
+  if (wrap) {
+    const tooltip = wrap.querySelector('.amount-tooltip');
+    wrap.addEventListener('mouseenter', () => {
+      const rect = wrap.getBoundingClientRect();
+      tooltip.style.top  = (rect.bottom + 8) + 'px';
+      tooltip.style.left = Math.max(8, rect.right - tooltip.offsetWidth || rect.right - 170) + 'px';
+      tooltip.classList.add('visible');
+      // Recalc left after it becomes visible (to get real width)
+      requestAnimationFrame(() => {
+        const tw = tooltip.offsetWidth;
+        tooltip.style.left = Math.max(8, rect.right - tw) + 'px';
+      });
+    });
+    wrap.addEventListener('mouseleave', () => {
+      tooltip.classList.remove('visible');
+    });
+  }
 
   card.querySelector(`#hdr-${id}`).onclick = async (e) => {
     if (e.target.closest('.edit-patient-btn')) return;
