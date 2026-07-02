@@ -1597,7 +1597,7 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
 }
 
 .invoice-footer-space {
-  height: 135px; 
+  height: 160px; 
 }
 
 /* Invoice: top meta row (title left, patient SN right) */
