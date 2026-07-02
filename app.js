@@ -458,8 +458,10 @@ function renderPatients(patients) {
   
   patients.forEach(p => {
     const pTests = allTests.filter(t => t.patient_id == p.id);
-    const total = pTests.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
-    const card = buildPatientCard(p.id, p, total);
+    const total      = pTests.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+    const paidAmt    = pTests.filter(t => t.paid).reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+    const pendingAmt = pTests.filter(t => !t.paid).reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+    const card = buildPatientCard(p.id, p, total, paidAmt, pendingAmt);
     patientList.appendChild(card);
   });
 }
@@ -566,9 +568,38 @@ window.changePage = (page) => {
 
 
 
-function buildPatientCard(id, p, total) {
+function buildPatientCard(id, p, total, paidAmt = 0, pendingAmt = 0) {
   const card = document.createElement("div");
   card.className = "patient-card";
+
+  // Build the amount badge based on payment state
+  let amountBadge = "";
+  if (total > 0) {
+    if (pendingAmt === 0) {
+      // All paid → green
+      amountBadge = `<span class="patient-total all-paid">₹${total}</span>`;
+    } else if (paidAmt === 0) {
+      // All pending → red
+      amountBadge = `<span class="patient-total all-pending">₹${total}</span>`;
+    } else {
+      // Mixed → theme color with hover tooltip
+      amountBadge = `
+        <span class="patient-total-wrap">
+          <span class="patient-total">₹${total}</span>
+          <div class="amount-tooltip">
+            <div class="amount-tooltip-row">
+              <span class="tooltip-paid">✅ Paid</span>
+              <span class="tooltip-paid">₹${paidAmt}</span>
+            </div>
+            <div class="amount-tooltip-row">
+              <span class="tooltip-pending">⏳ Pending</span>
+              <span class="tooltip-pending">₹${pendingAmt}</span>
+            </div>
+          </div>
+        </span>`;
+    }
+  }
+
   card.innerHTML = `
     <div class="patient-header" id="hdr-${id}">
       <div class="patient-title-row">
@@ -580,7 +611,7 @@ function buildPatientCard(id, p, total) {
           </div>
           ${p.referred_by ? `<span class="patient-referred">Ref: ${p.referred_by}</span>` : ""}
         </div>
-        ${total > 0 ? `<span class="patient-total">₹${total}</span>` : ""}
+        ${amountBadge}
       </div>
       <div class="patient-meta">
         <span class="patient-badge">${p.gender} · ${p.age}y</span>

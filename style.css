@@ -449,6 +449,69 @@ main { flex: 1; padding: 16px; max-width: 680px; width: 100%; margin: 0 auto; }
   font-size: 13px;
 }
 
+/* All paid → green pill */
+.patient-total.all-paid {
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.1);
+}
+
+/* All pending → red pill */
+.patient-total.all-pending {
+  color: #e11d48;
+  background: rgba(225, 29, 72, 0.1);
+}
+
+/* Mixed → theme pill with hover tooltip */
+.patient-total-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.patient-total-wrap .amount-tooltip {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  min-width: 160px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  z-index: 999;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  transform: translateY(-4px);
+  white-space: nowrap;
+}
+
+.patient-total-wrap:hover .amount-tooltip {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.amount-tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 0;
+}
+
+.amount-tooltip-row + .amount-tooltip-row {
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding-top: 7px;
+}
+
+.tooltip-paid   { color: #16a34a; }
+.tooltip-pending { color: #e11d48; }
+
 .patient-meta {
   display: flex;
   align-items: center;
