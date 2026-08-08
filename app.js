@@ -205,10 +205,10 @@ function showLoading(show) {
   else loadingOverlay.classList.add("hidden");
 }
 
-function showConfirm(title, msg, onConfirm, isDanger = true) {
+function showConfirm(title, msg, onConfirm, isDanger = true, customBtnText = null) {
   confirmTitle.textContent = title;
   confirmMessage.textContent = msg;
-  confirmBtn.textContent = isDanger ? "Yes, Delete" : "Yes, Proceed";
+  confirmBtn.textContent = customBtnText ? customBtnText : (isDanger ? "Yes, Delete" : "Yes, Proceed");
   confirmBtn.className = isDanger ? "btn-primary btn-danger" : "btn-primary";
   confirmModal.classList.remove("hidden");
   
@@ -2598,7 +2598,9 @@ document.getElementById("manualArchiveBtn")?.addEventListener("click", () => {
   showConfirm(
     `🗃️ Archive Data for ${label}`,
     `This will save all ${label} patient data to Supabase Storage. Your live data will NOT be deleted yet. Continue?`,
-    () => archiveMonth(year, month)
+    () => archiveMonth(year, month),
+    false,
+    "Yes, Archive"
   );
 });
 
