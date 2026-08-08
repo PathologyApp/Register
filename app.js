@@ -2359,7 +2359,7 @@ async function loadArchiveList() {
   }
 }
 
-// Core archive function: packages a month's data → uploads → VERIFIES → only then deletes from DB
+// Core archive function: packages a month's data → uploads → VERIFIES
 async function archiveMonth(year, month) {
   // month is 0-indexed
   const monthStr = String(month + 1).padStart(2, "0");
@@ -2427,9 +2427,38 @@ async function archiveMonth(year, month) {
       );
     }
 
-    showToast(`✅ Archive verified: ${patients.length} patients saved`, "success");
+    showToast(`✅ Archive verified: ${patients.length} patients saved. You can now safely delete this month.`, "success");
+    await loadArchiveList();
+    return true;
 
-    // Step 5: Only now, delete from the live database (tests first, then patients)
+  } catch (e) {
+    console.error("Archive error:", e);
+    showToast("⚠️ " + e.message, "error");
+    return false;
+  } finally {
+    showLoading(false);
+  }
+}
+
+// Separate function to explicitly delete a month's data from the live DB
+async function deleteMonthData(year, month) {
+  const monthStr = String(month + 1).padStart(2, "0");
+  const startDate = `${year}-${monthStr}-01`;
+  const endDate = new Date(year, month + 1, 1).toISOString().split("T")[0];
+
+  showLoading(true);
+  try {
+    const patients = allPatients.filter(p =>
+      p.admission_date >= startDate && p.admission_date < endDate
+    );
+    if (patients.length === 0) {
+      showToast(`No patients found for ${MONTHS_FULL[month]} ${year}`, "error");
+      return false;
+    }
+    const patientIds = new Set(patients.map(p => p.id));
+    const tests = allTests.filter(t => patientIds.has(t.patient_id));
+
+    // Delete tests first, then patients (order matters for referential integrity)
     for (const t of tests) {
       await (await supabase.from(getTable("tests"))).delete(t.id);
     }
@@ -2439,18 +2468,15 @@ async function archiveMonth(year, month) {
 
     showToast(`🗑️ ${patients.length} patients removed from live DB`, "success");
 
-    // Reload live data directly — do NOT call loadPatients() here as it
-    // would trigger checkAndAutoArchive() again, causing an infinite loop
+    // Reload live data directly
     allPatients = await (await supabase.from(getTable("patients"))).select();
     allTests    = await (await supabase.from(getTable("tests"))).select();
     currentPage = 1;
     filterAndRender();
-    await loadArchiveList();
     return true;
-
   } catch (e) {
-    console.error("Archive error:", e);
-    showToast("⚠️ " + e.message, "error");
+    console.error("Delete error:", e);
+    showToast("Delete failed: " + e.message, "error");
     return false;
   } finally {
     showLoading(false);
@@ -2550,7 +2576,11 @@ async function checkAndAutoArchive() {
         const [yr, mo] = key.split("-");
         const monthName = MONTHS_FULL[parseInt(mo) - 1];
         showToast(`⚙️ Auto-archiving ${monthName} ${yr}…`, "info");
-        await archiveMonth(parseInt(yr), parseInt(mo) - 1);
+        // In auto-archive mode, we want to archive THEN delete
+        const success = await archiveMonth(parseInt(yr), parseInt(mo) - 1);
+        if (success) {
+          await deleteMonthData(parseInt(yr), parseInt(mo) - 1);
+        }
       }
     }
   } catch (e) {
@@ -2566,9 +2596,20 @@ document.getElementById("manualArchiveBtn")?.addEventListener("click", () => {
   const year  = parseInt(document.getElementById("archiveYearSelect").value);
   const label = `${MONTHS_FULL[month]} ${year}`;
   showConfirm(
-    `🗃️ Archive & Delete ${label}`,
-    `This will save all ${label} patient data to Supabase Storage and permanently delete it from the live database. Continue?`,
+    `🗃️ Archive Data for ${label}`,
+    `This will save all ${label} patient data to Supabase Storage. Your live data will NOT be deleted yet. Continue?`,
     () => archiveMonth(year, month)
+  );
+});
+
+document.getElementById("manualDeleteBtn")?.addEventListener("click", () => {
+  const month = parseInt(document.getElementById("archiveMonthSelect").value);
+  const year  = parseInt(document.getElementById("archiveYearSelect").value);
+  const label = `${MONTHS_FULL[month]} ${year}`;
+  showConfirm(
+    `🗑️ Delete Live Data for ${label}`,
+    `WARNING: This will permanently delete all ${label} patient data from the live database. Ensure you have archived it first! Continue?`,
+    () => deleteMonthData(year, month)
   );
 });
 
