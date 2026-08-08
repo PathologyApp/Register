@@ -714,7 +714,12 @@ async function loadTests(patientId, overrideDateFilter = false) {
   if (!container) return;
   container.innerHTML = `<div class="no-tests">Loading…</div>`;
   try {
-    const data = await (await supabase.from(getTable("tests"))).select();
+    let data;
+    if (isArchiveMode) {
+      data = allTests; // Use memory in archive mode
+    } else {
+      data = await (await supabase.from(getTable("tests"))).select(); // Fetch live in live mode
+    }
     let pTests = data.filter(t => t.patient_id == patientId);
     
     const td = testDateFilter.value;
