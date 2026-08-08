@@ -74,5 +74,64 @@ export const supabase = {
         return true;
       }
     };
+  },
+
+  // ── Supabase Storage API ───────────────────────────────
+  storage: {
+    async upload(bucket, path, jsonData) {
+      const blob = new Blob([JSON.stringify(jsonData)], { type: "application/json" });
+      const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}/${path}`, {
+        method: "POST",
+        headers: {
+          "apikey": SUPABASE_KEY,
+          "Authorization": `Bearer ${SUPABASE_KEY}`,
+          "Content-Type": "application/json",
+          "x-upsert": "true"
+        },
+        body: blob
+      });
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`Storage upload failed: ${err}`);
+      }
+      return true;
+    },
+
+    async list(bucket) {
+      const res = await fetch(`${SUPABASE_URL}/storage/v1/object/list/${bucket}`, {
+        method: "POST",
+        headers: {
+          "apikey": SUPABASE_KEY,
+          "Authorization": `Bearer ${SUPABASE_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ limit: 100, offset: 0 })
+      });
+      if (!res.ok) return [];
+      return await res.json();
+    },
+
+    async download(bucket, path) {
+      const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}/${path}`, {
+        headers: {
+          "apikey": SUPABASE_KEY,
+          "Authorization": `Bearer ${SUPABASE_KEY}`
+        }
+      });
+      if (!res.ok) throw new Error("Archive not found");
+      return await res.json();
+    },
+
+    async remove(bucket, path) {
+      const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}/${path}`, {
+        method: "DELETE",
+        headers: {
+          "apikey": SUPABASE_KEY,
+          "Authorization": `Bearer ${SUPABASE_KEY}`
+        }
+      });
+      return res.ok;
+    }
   }
 };
+

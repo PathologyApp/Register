@@ -2122,3 +2122,133 @@ html, body {
 .chart-header h3 { margin: 0; font-size: 16px; color: var(--text); }
 .chart-header select { background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 4px; font-size: 12px; }
 .canvas-container { position: relative; height: 250px; width: 100%; }
+
+/* ── Archive Banner ───────────────────────────────────── */
+.archive-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(90deg, #92400e, #b45309);
+  color: #fef3c7;
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  flex-wrap: wrap;
+}
+.archive-banner-note {
+  font-size: 11px;
+  font-weight: 400;
+  opacity: 0.8;
+  flex: 1;
+}
+.archive-close-btn {
+  background: rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: #fef3c7;
+  padding: 4px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+.archive-close-btn:hover { background: rgba(255,255,255,0.35); }
+
+/* ── Archive Section (Reports Tab) ───────────────────── */
+.archive-section {
+  margin-top: 30px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+.archive-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 15px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.archive-section-header h3 {
+  margin: 0 0 4px 0;
+  font-size: 16px;
+  color: var(--text);
+}
+.archive-section-desc {
+  font-size: 12px;
+  color: var(--text-2);
+  margin: 0;
+}
+.archive-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.archive-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.archive-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 18px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.archive-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.archive-item-name {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+}
+.archive-item-meta {
+  font-size: 11px;
+  color: var(--text-2);
+}
+.archive-item-actions {
+  display: flex;
+  gap: 8px;
+}
+.archive-load-btn {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: opacity 0.2s;
+}
+.archive-load-btn:hover { opacity: 0.85; }
+.archive-delete-btn {
+  background: transparent;
+  color: #e11d48;
+  border: 1px solid #e11d48;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.2s;
+}
+.archive-delete-btn:hover { background: rgba(225,29,72,0.1); }
+
+/* ── Archive Mode: hide write actions ─────────────────── */
+body.archive-mode .fab,
+body.archive-mode .add-test-btn,
+body.archive-mode .edit-patient-btn,
+body.archive-mode .delete-patient-btn,
+body.archive-mode .bulk-pay-btn,
+body.archive-mode .bulk-revert-btn { display: none !important; }

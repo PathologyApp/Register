@@ -434,6 +434,7 @@ async function savePatientRecord(id, name, age, gender, date, referred) {
 
 // ── Load Patients ─────────────────────────────────────────
 async function loadPatients() {
+  if (isArchiveMode) return; // Don't overwrite archive data
   patientList.innerHTML = `<div class="loading-state">Loading patients…</div>`;
   try {
     allPatients = await (await supabase.from(getTable("patients"))).select();
@@ -442,6 +443,8 @@ async function loadPatients() {
     updateTestSuggestions(allTests);
     currentPage = 1; // Reset to first page on reload
     filterAndRender();
+    // Run auto-archive check silently in background
+    checkAndAutoArchive().catch(() => {});
   } catch (err) {
     patientList.innerHTML = `<div class="empty-state">Error loading data.</div>`;
   }
@@ -2279,3 +2282,258 @@ const revSel = document.getElementById("revenueWeekSelect");
 if (revSel) revSel.onchange = renderAnalytics;
 const topSel = document.getElementById("topTestsPeriodSelect");
 if (topSel) topSel.onchange = renderAnalytics;
+
+
+// ── Archive System ────────────────────────────────────────
+const ARCHIVE_BUCKET = "archives";
+const MONTHS_FULL = ["January","February","March","April","May","June",
+                     "July","August","September","October","November","December"];
+let isArchiveMode = false;
+let livePatients = [];
+let liveTests = [];
+
+// Populate the month/year selectors in the Archive section
+function initArchiveSelectors() {
+  const ms = document.getElementById("archiveMonthSelect");
+  const ys = document.getElementById("archiveYearSelect");
+  if (!ms || !ys) return;
+  ms.innerHTML = MONTHS_FULL.map((m, i) => `<option value="${i}">${m}</option>`).join("");
+  const cy = new Date().getFullYear();
+  ys.innerHTML = "";
+  for (let y = cy; y >= 2024; y--) {
+    ys.innerHTML += `<option value="${y}">${y}</option>`;
+  }
+  // Default to previous month
+  const prev = new Date(); prev.setMonth(prev.getMonth() - 1);
+  ms.value = prev.getMonth();
+  ys.value = prev.getFullYear();
+}
+
+// List archives from Supabase Storage and render them
+async function loadArchiveList() {
+  const listEl = document.getElementById("archiveList");
+  if (!listEl) return;
+  listEl.innerHTML = `<div class="loading-state">Loading archives…</div>`;
+  try {
+    const files = await supabase.storage.list(ARCHIVE_BUCKET);
+    if (!files || files.length === 0) {
+      listEl.innerHTML = `<div class="empty-state">No archives yet. Old months will appear here automatically.</div>`;
+      return;
+    }
+    // Filter out folders/placeholders
+    const archives = files.filter(f => f.name && f.name.endsWith(".json"));
+    if (archives.length === 0) {
+      listEl.innerHTML = `<div class="empty-state">No archives yet. Old months will appear here automatically.</div>`;
+      return;
+    }
+    listEl.innerHTML = "";
+    archives.sort((a, b) => b.name.localeCompare(a.name)).forEach(f => {
+      // filename format: archive_2026_06.json
+      const parts = f.name.replace(".json","").split("_");
+      const yr = parts[1], mo = parseInt(parts[2]) - 1;
+      const label = `${MONTHS_FULL[mo] || "?"} ${yr}`;
+      const sizeKb = f.metadata?.size ? Math.round(f.metadata.size / 1024) + " KB" : "";
+      const item = document.createElement("div");
+      item.className = "archive-item";
+      item.innerHTML = `
+        <div class="archive-item-info">
+          <span class="archive-item-name">📁 ${label}</span>
+          <span class="archive-item-meta">${sizeKb ? sizeKb + " · " : ""}Saved in Supabase Storage</span>
+        </div>
+        <div class="archive-item-actions">
+          <button class="archive-load-btn" data-file="${f.name}" data-label="${label}">📂 Load</button>
+          <button class="archive-delete-btn" data-file="${f.name}" data-label="${label}">🗑</button>
+        </div>`;
+      item.querySelector(".archive-load-btn").onclick = () => loadArchiveFromStorage(f.name, label);
+      item.querySelector(".archive-delete-btn").onclick = () => deleteArchiveFile(f.name, label);
+      listEl.appendChild(item);
+    });
+  } catch (e) {
+    listEl.innerHTML = `<div class="empty-state">Could not load archives. Check Supabase Storage is set up.</div>`;
+    console.error("Archive list error:", e);
+  }
+}
+
+// Core archive function: packages a month's data → uploads → deletes from DB
+async function archiveMonth(year, month) {
+  // month is 0-indexed
+  const monthStr = String(month + 1).padStart(2, "0");
+  const startDate = `${year}-${monthStr}-01`;
+  const endDate = new Date(year, month + 1, 1).toISOString().split("T")[0];
+  const fileName = `archive_${year}_${monthStr}.json`;
+
+  showLoading(true);
+  try {
+    // 1. Fetch patients from that month
+    const patients = allPatients.filter(p =>
+      p.admission_date >= startDate && p.admission_date < endDate
+    );
+    if (patients.length === 0) {
+      showToast(`No patients found for ${MONTHS_FULL[month]} ${year}`, "error");
+      return false;
+    }
+    const patientIds = new Set(patients.map(p => p.id));
+
+    // 2. Fetch their tests
+    const tests = allTests.filter(t => patientIds.has(t.patient_id));
+
+    // 3. Build the archive JSON
+    const archiveData = {
+      meta: {
+        month: MONTHS_FULL[month],
+        year: year,
+        exported_at: new Date().toISOString().split("T")[0],
+        total_patients: patients.length,
+        total_tests: tests.length
+      },
+      patients: patients.map(p => ({
+        ...p,
+        tests: tests.filter(t => t.patient_id == p.id)
+      }))
+    };
+
+    // 4. Upload to Supabase Storage
+    await supabase.storage.upload(ARCHIVE_BUCKET, fileName, archiveData);
+    showToast(`✅ Archive uploaded: ${MONTHS_FULL[month]} ${year}`, "success");
+
+    // 5. Delete tests first, then patients (order matters for referential integrity)
+    for (const t of tests) {
+      await (await supabase.from(getTable("tests"))).delete(t.id);
+    }
+    for (const p of patients) {
+      await (await supabase.from(getTable("patients"))).delete(p.id);
+    }
+
+    showToast(`🗑️ ${patients.length} patients removed from live DB`, "success");
+    await loadPatients(); // Refresh live data
+    await loadArchiveList(); // Refresh archive list
+    return true;
+  } catch (e) {
+    console.error("Archive error:", e);
+    showToast("Archive failed: " + e.message, "error");
+    return false;
+  } finally {
+    showLoading(false);
+  }
+}
+
+// Load an archive JSON from Storage and render it in archive mode
+async function loadArchiveFromStorage(fileName, label) {
+  showLoading(true);
+  try {
+    const data = await supabase.storage.download(ARCHIVE_BUCKET, fileName);
+    // Flatten patients/tests for rendering
+    const archivePatients = data.patients;
+    const archiveTests = data.patients.flatMap(p => p.tests || []);
+
+    // Switch to archive mode
+    isArchiveMode = true;
+    livePatients = [...allPatients];
+    liveTests = [...allTests];
+    allPatients = archivePatients;
+    allTests = archiveTests;
+
+    document.body.classList.add("archive-mode");
+    const banner = document.getElementById("archiveBanner");
+    const bannerText = document.getElementById("archiveBannerText");
+    banner.classList.remove("hidden");
+    bannerText.textContent = `📁 Viewing Archive: ${label}`;
+
+    // Switch to Patients tab to show the data
+    document.getElementById("patientsTab").click();
+    currentPage = 1;
+    filterAndRender();
+    showToast(`📂 Loaded: ${label}`, "success");
+  } catch (e) {
+    showToast("Failed to load archive: " + e.message, "error");
+  } finally {
+    showLoading(false);
+  }
+}
+
+// Close archive mode and return to live data
+function closeArchive() {
+  if (!isArchiveMode) return;
+  isArchiveMode = false;
+  allPatients = [...livePatients];
+  allTests = [...liveTests];
+  document.body.classList.remove("archive-mode");
+  document.getElementById("archiveBanner").classList.add("hidden");
+  currentPage = 1;
+  filterAndRender();
+  showToast("↩️ Back to live data", "success");
+}
+
+// Delete an archive file from Storage
+async function deleteArchiveFile(fileName, label) {
+  showConfirm(`Delete Archive`, `Permanently delete the archive for "${label}"? This cannot be undone.`, async () => {
+    showLoading(true);
+    try {
+      await supabase.storage.remove(ARCHIVE_BUCKET, fileName);
+      showToast(`Deleted archive: ${label}`, "success");
+      await loadArchiveList();
+    } catch (e) {
+      showToast("Delete failed", "error");
+    } finally {
+      showLoading(false);
+    }
+  });
+}
+
+// Auto-check on app load: archive data older than 60 days automatically
+async function checkAndAutoArchive() {
+  if (useSampleMode) return; // Skip for sample mode
+  try {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 60);
+    const cutoffStr = cutoff.toISOString().split("T")[0];
+
+    // Find all unique year-month combos older than 60 days
+    const oldMonths = new Set();
+    allPatients.forEach(p => {
+      if (p.admission_date && p.admission_date < cutoffStr) {
+        const [y, m] = p.admission_date.split("-");
+        oldMonths.add(`${y}-${m}`);
+      }
+    });
+    if (oldMonths.size === 0) return;
+
+    // Check which ones are already archived
+    const existingFiles = await supabase.storage.list(ARCHIVE_BUCKET);
+    const archivedKeys = new Set(
+      (existingFiles || []).map(f => f.name.replace("archive_","").replace(".json","").replace("_","-"))
+    );
+
+    for (const key of oldMonths) {
+      if (!archivedKeys.has(key)) {
+        const [yr, mo] = key.split("-");
+        const monthName = MONTHS_FULL[parseInt(mo) - 1];
+        showToast(`⚙️ Auto-archiving ${monthName} ${yr}…`, "info");
+        await archiveMonth(parseInt(yr), parseInt(mo) - 1);
+      }
+    }
+  } catch (e) {
+    console.error("Auto-archive check failed:", e);
+  }
+}
+
+// Wire up archive UI events
+document.getElementById("manualArchiveBtn")?.addEventListener("click", () => {
+  const month = parseInt(document.getElementById("archiveMonthSelect").value);
+  const year  = parseInt(document.getElementById("archiveYearSelect").value);
+  const label = `${MONTHS_FULL[month]} ${year}`;
+  showConfirm(
+    `🗃️ Archive & Delete ${label}`,
+    `This will save all ${label} patient data to Supabase Storage and permanently delete it from the live database. Continue?`,
+    () => archiveMonth(year, month)
+  );
+});
+
+document.getElementById("closeArchiveBtn")?.addEventListener("click", closeArchive);
+
+// Init archive selectors when Reports tab is clicked
+document.getElementById("reportsTab")?.addEventListener("click", () => {
+  initArchiveSelectors();
+  loadArchiveList();
+});
+

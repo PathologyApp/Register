@@ -8,7 +8,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=2.6"/>
+  <link rel="stylesheet" href="style.css?v=2.7"/>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#4f6ef7">
   <meta name="mobile-web-app-capable" content="yes">
@@ -71,6 +71,13 @@
         <button id="logoutBtn" class="btn-logout">Logout</button>
       </div>
     </header>
+
+    <!-- Archive Banner (shown when viewing an archived month) -->
+    <div id="archiveBanner" class="archive-banner hidden">
+      <span id="archiveBannerText">📁 Viewing Archive</span>
+      <span class="archive-banner-note">Read-only — Live data is unaffected</span>
+      <button id="closeArchiveBtn" class="archive-close-btn">✕ Back to Live</button>
+    </div>
 
     <div class="tabs">
       <button id="patientsTab" class="tab active">Patients</button>
@@ -213,6 +220,24 @@
           </div>
         </div>
         <div id="reportContent"></div>
+
+        <!-- Archive Section -->
+        <div class="archive-section">
+          <div class="archive-section-header">
+            <div>
+              <h3>📦 Data Archives</h3>
+              <p class="archive-section-desc">Old months are auto-archived here to keep Supabase quota free. Load any month to browse it.</p>
+            </div>
+            <div class="archive-actions">
+              <select id="archiveMonthSelect"></select>
+              <select id="archiveYearSelect"></select>
+              <button id="manualArchiveBtn" class="btn-secondary">🗃️ Archive &amp; Delete Month</button>
+            </div>
+          </div>
+          <div id="archiveList" class="archive-list">
+            <div class="empty-state">Checking for saved archives…</div>
+          </div>
+        </div>
       </div>
 
       <div id="logsView" class="hidden">
