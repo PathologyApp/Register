@@ -105,9 +105,13 @@ export const supabase = {
           "Authorization": `Bearer ${SUPABASE_KEY}`,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ limit: 100, offset: 0 })
+        body: JSON.stringify({ prefix: "", limit: 100, offset: 0 })
       });
-      if (!res.ok) return [];
+      if (!res.ok) {
+        const errText = await res.text();
+        console.warn("Storage list failed:", res.status, errText);
+        return [];
+      }
       return await res.json();
     },
 

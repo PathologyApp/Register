@@ -2289,6 +2289,7 @@ const ARCHIVE_BUCKET = "archives";
 const MONTHS_FULL = ["January","February","March","April","May","June",
                      "July","August","September","October","November","December"];
 let isArchiveMode = false;
+let isAutoArchiving = false; // Guard: prevents recursive auto-archive calls
 let livePatients = [];
 let liveTests = [];
 
@@ -2432,7 +2433,13 @@ async function archiveMonth(year, month) {
     }
 
     showToast(`🗑️ ${patients.length} patients removed from live DB`, "success");
-    await loadPatients();
+
+    // Reload live data directly — do NOT call loadPatients() here as it
+    // would trigger checkAndAutoArchive() again, causing an infinite loop
+    allPatients = await (await supabase.from(getTable("patients"))).select();
+    allTests    = await (await supabase.from(getTable("tests"))).select();
+    currentPage = 1;
+    filterAndRender();
     await loadArchiveList();
     return true;
 
@@ -2510,7 +2517,8 @@ async function deleteArchiveFile(fileName, label) {
 
 // Auto-check on app load: archive data older than 60 days automatically
 async function checkAndAutoArchive() {
-  if (useSampleMode) return; // Skip for sample mode
+  if (useSampleMode || isAutoArchiving) return; // Skip for sample mode or if already running
+  isAutoArchiving = true;
   try {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 60);
@@ -2542,6 +2550,8 @@ async function checkAndAutoArchive() {
     }
   } catch (e) {
     console.error("Auto-archive check failed:", e);
+  } finally {
+    isAutoArchiving = false;
   }
 }
 
