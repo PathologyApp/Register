@@ -2328,7 +2328,6 @@ async function loadArchiveList() {
     }
     listEl.innerHTML = "";
     archives.sort((a, b) => b.name.localeCompare(a.name)).forEach(f => {
-      // filename format: archive_2026_06.json
       const parts = f.name.replace(".json","").split("_");
       const yr = parts[1], mo = parseInt(parts[2]) - 1;
       const label = `${MONTHS_FULL[mo] || "?"} ${yr}`;
@@ -2354,7 +2353,7 @@ async function loadArchiveList() {
   }
 }
 
-// Core archive function: packages a month's data → uploads → deletes from DB
+// Core archive function: packages a month's data → uploads → VERIFIES → only then deletes from DB
 async function archiveMonth(year, month) {
   // month is 0-indexed
   const monthStr = String(month + 1).padStart(2, "0");
@@ -2364,7 +2363,7 @@ async function archiveMonth(year, month) {
 
   showLoading(true);
   try {
-    // 1. Fetch patients from that month
+    // Step 1: Collect patients for this month
     const patients = allPatients.filter(p =>
       p.admission_date >= startDate && p.admission_date < endDate
     );
@@ -2373,11 +2372,9 @@ async function archiveMonth(year, month) {
       return false;
     }
     const patientIds = new Set(patients.map(p => p.id));
-
-    // 2. Fetch their tests
     const tests = allTests.filter(t => patientIds.has(t.patient_id));
 
-    // 3. Build the archive JSON
+    // Step 2: Build the archive JSON
     const archiveData = {
       meta: {
         month: MONTHS_FULL[month],
@@ -2392,11 +2389,41 @@ async function archiveMonth(year, month) {
       }))
     };
 
-    // 4. Upload to Supabase Storage
+    // Step 3: Upload to Supabase Storage
+    // (throws immediately if the HTTP response is not OK — deletion cannot proceed)
+    showToast(`⏳ Uploading archive…`, "info");
     await supabase.storage.upload(ARCHIVE_BUCKET, fileName, archiveData);
-    showToast(`✅ Archive uploaded: ${MONTHS_FULL[month]} ${year}`, "success");
 
-    // 5. Delete tests first, then patients (order matters for referential integrity)
+    // Step 4: VERIFY — re-download and confirm the patient count matches
+    // This catches cases where upload appeared to succeed but file is unreadable/corrupted
+    showToast(`🔍 Verifying archive integrity…`, "info");
+    let verified = false;
+    try {
+      const check = await supabase.storage.download(ARCHIVE_BUCKET, fileName);
+      if (
+        check &&
+        check.meta &&
+        check.meta.total_patients === patients.length &&
+        Array.isArray(check.patients) &&
+        check.patients.length === patients.length
+      ) {
+        verified = true;
+      }
+    } catch (verifyErr) {
+      verified = false;
+    }
+
+    if (!verified) {
+      // Upload succeeded but verification failed — do NOT delete
+      throw new Error(
+        "Archive verification failed — the uploaded file did not match the source data. " +
+        "No data has been deleted. Please try again."
+      );
+    }
+
+    showToast(`✅ Archive verified: ${patients.length} patients saved`, "success");
+
+    // Step 5: Only now, delete from the live database (tests first, then patients)
     for (const t of tests) {
       await (await supabase.from(getTable("tests"))).delete(t.id);
     }
@@ -2405,12 +2432,13 @@ async function archiveMonth(year, month) {
     }
 
     showToast(`🗑️ ${patients.length} patients removed from live DB`, "success");
-    await loadPatients(); // Refresh live data
-    await loadArchiveList(); // Refresh archive list
+    await loadPatients();
+    await loadArchiveList();
     return true;
+
   } catch (e) {
     console.error("Archive error:", e);
-    showToast("Archive failed: " + e.message, "error");
+    showToast("⚠️ " + e.message, "error");
     return false;
   } finally {
     showLoading(false);
